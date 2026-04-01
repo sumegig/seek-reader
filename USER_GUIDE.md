@@ -1,11 +1,11 @@
-# CrossPoint User Guide
+# SEEK User Guide
 
-Welcome to the **CrossPoint** firmware. This guide outlines the hardware controls, navigation, and reading features of the device.
+Welcome to the **SEEK** firmware. This guide outlines the hardware controls, navigation, and reading features of the device.
 
-- [CrossPoint User Guide](#crosspoint-user-guide)
+- [SEEK User Guide](#seek-user-guide)
   - [1. Hardware Overview](#1-hardware-overview)
     - [Button Layout](#button-layout)
-  - [2. Power \& Startup](#2-power--startup)
+  - [2. Power & Startup](#2-power--startup)
     - [Power On / Off](#power-on--off)
     - [First Launch](#first-launch)
   - [3. Screens](#3-screens)
@@ -28,19 +28,19 @@ Welcome to the **CrossPoint** firmware. This guide outlines the hardware control
     - [System Navigation](#system-navigation)
     - [Supported Languages](#supported-languages)
   - [5. Chapter Selection Screen](#5-chapter-selection-screen)
-  - [6. Current Limitations \& Roadmap](#6-current-limitations--roadmap)
-  - [7. Troubleshooting Issues \& Escaping Bootloop](#7-troubleshooting-issues--escaping-bootloop)
+  - [6. Current Limitations & Roadmap](#6-current-limitations--roadmap)
+  - [7. Troubleshooting Issues & Escaping Bootloop](#7-troubleshooting-issues--escaping-bootloop)
 
 
 ## 1. Hardware Overview
 
-The device utilises the standard buttons on the Xteink X4 (in the same layout as the manufacturer firmware, by default):
+The device utilizes the standard buttons on the Xteink X4 (in the same layout as the manufacturer firmware, by default):
 
 ### Button Layout
 | Location        | Buttons                                              |
 | --------------- | ---------------------------------------------------- |
-| **Bottom Edge** | **Back**, **Confirm**, **Left**, **Right**           |
-| **Right Side**  | **Power**, **Volume Up**, **Volume Down**, **Reset** |
+| **Bottom Edge** | **Back**, **Confirm**, **Left**, **Right** |
+| **Right Side** | **Power**, **Volume Up**, **Volume Down**, **Reset** |
 
 Button layout can be customized in the **[Controls Settings](#363-controls)**.
 
@@ -102,10 +102,10 @@ See the [webserver docs](./docs/webserver.md) for more information on how to con
 
 ### 3.5.1 Calibre Wireless Transfers
 
-CrossPoint supports sending books from Calibre using the CrossPoint Reader device plugin.
+SEEK supports sending books from Calibre utilizing the legacy CrossPoint Reader device plugin.
 
 1. Install the plugin in Calibre:
-   - Head to https://github.com/crosspoint-reader/calibre-plugins/releases to download the latest version of the crosspoint_reader plugin.
+   - Head to https://github.com/crosspoint-reader/calibre-plugins/releases to download the latest version of the `crosspoint_reader` plugin.
    - Download the zip file.
    - Open Calibre → Preferences → Plugins → Load plugin from file → Select the zip file.
 2. On the device: File Transfer → Connect to Calibre → Join a network.
@@ -119,15 +119,15 @@ The Settings screen allows you to configure the device's behavior. There are a f
 #### 3.6.1 Display
 
 - **Sleep Screen**: Which sleep screen to display when the device sleeps:
-  - "Dark" (default) - The default dark Crosspoint logo sleep screen
+  - "Dark" (default) - The default dark SEEK logo sleep screen
   - "Light" - The same default sleep screen, on a white background
   - "Custom" - Custom images from the SD card; see [Sleep Screen](#37-sleep-screen) below for more information
-  - "Cover" - The book cover image (Note: this is experimental and may not work as expected)
+  - "Cover" - The book cover image
   - "None" - A blank screen
   - "Cover + Custom" - The book cover image, falls back to "Custom" behavior
 - **Sleep Screen Cover Mode**: How to display the book cover when "Cover" sleep screen is selected:
   - "Fit" (default) - Scale the image down to fit centered on the screen, padding with white borders as necessary
-  - "Crop" - Scale the image down and crop as necessary to try to fill the screen (Note: this is experimental and may not work as expected)
+  - "Crop" - Scale the image down and crop as necessary to try to fill the screen
 - **Sleep Screen Cover Filter**: What filter will be applied to the book cover when "Cover" sleep screen is selected:
   - "None" (default) - The cover image will be converted to a grayscale image and displayed as it is
   - "Contrast" - The image will be displayed as a black & white image without grayscale conversion
@@ -146,8 +146,8 @@ The Settings screen allows you to configure the device's behavior. There are a f
 - **Refresh Frequency**: Set how often the screen does a full refresh while reading to reduce ghosting; options are every 1, 5, 10, 15, or 30 pages.
 
 - **UI Theme**: Set which UI theme to use:
-  - "Classic" - The original Crosspoint theme
-  - "Lyra" - The new theme for Crosspoint featuring rounded elements and menu icons
+  - "Classic" - The original theme
+  - "Lyra" - The new theme featuring rounded elements and menu icons
   - "Lyra Extended" - Lyra, but displays 3 books instead of 1 on the **[Home Screen](#31-home-screen)**
 - **Sunlight Fading Fix**: Configure whether to enable a software-fix for the issue where white X4 models may fade when used in direct sunlight:
   - "OFF" (default) - Disable the fix
@@ -159,11 +159,10 @@ The Settings screen allows you to configure the device's behavior. There are a f
   - "Noto Sans" - Google's sans-serif font
   - "Open Dyslexic" - Font designed for readers with dyslexia
 - **Reader Font Size**: Adjust the text size for reading; options are "Small", "Medium" (default), "Large", or "X Large".
-
 - **Reader Line Spacing**: Adjust the spacing between lines; options are "Tight", "Normal" (default), or "Wide".
 - **Reader Screen Margin**: Controls the screen margins in Reading Mode between 5 and 40 pixels in 5-pixel increments.
 - **Reader Paragraph Alignment**: Set the alignment of paragraphs; options are "Justified" (default), "Left", "Center", or "Right".
-- **Embedded Style**: Whether to use the EPUB file's embedded HTML and CSS stylisation and formatting; options are "ON" or "OFF".
+- **Embedded Style**: Whether to use the EPUB file's embedded HTML and CSS stylization and formatting; options are "ON" or "OFF".
 - **Hyphenation**: Whether to hyphenate text in Reading Mode; options are "ON" or "OFF".
 - **Reading Orientation**: Set the screen orientation for reading EPUB files:
   - "Portrait" (default) - Standard portrait orientation
@@ -177,7 +176,7 @@ The Settings screen allows you to configure the device's behavior. There are a f
 
 #### 3.6.3 Controls
 
-- **Remap Front Buttons**: A menu for customising the function of each bottom edge button.
+- **Remap Front Buttons**: A menu for customizing the function of each bottom edge button.
 - **Side Button Layout (reader)**: Swap the order of the up and down volume buttons from "Prev/Next" (default) to "Next/Prev". This change is only in effect when reading.
 
 - **Long-press Chapter Skip**: Set whether long-pressing page turn buttons skips to the next/previous chapter:
@@ -191,17 +190,16 @@ The Settings screen allows you to configure the device's behavior. There are a f
 #### 3.6.4 System
 
 - **Time to Sleep**: Set the duration of inactivity before the device automatically goes to sleep; options are 1, 5, 10 (default), 15 or 30 minutes.
-
 - **WiFi Networks**: Connect to WiFi networks for file transfers and firmware updates.
 - **KOReader Sync**: Options for setting up KOReader for syncing book progress.
-- **OPDS Browser**: Configure OPDS server settings for browsing and downloading books. Set the server URL (for Calibre Content Server, add `/opds` to the end), and optionally configure username and password for servers requiring authentication. Note: Only HTTP Basic authentication is supported. If using Calibre Content Server with authentication enabled, you must set it to use Basic authentication instead of the default Digest authentication.
+- **OPDS Browser**: Configure OPDS server settings for browsing and downloading books. Set the server URL. Note: Only HTTP Basic authentication is supported.
 - **Clear Reading Cache**: Clear the internal SD card cache.
-- **Check for updates**: Check for Crosspoint firmware updates over WiFi.
+- **Check for updates**: Check for SEEK firmware updates over WiFi.
 - **Language**: Set the system language (see **[Supported Languages](#supported-languages)** for more information).
 
 #### 3.6.5 KOReader Sync Quick Setup
 
-CrossPoint can sync reading progress with KOReader-compatible sync servers.
+SEEK can sync reading progress with KOReader-compatible sync servers.
 It also interoperates with KOReader apps/devices when they use the same server and credentials.
 
 ##### Option A: Free Public Server (`sync.koreader.rocks`)
@@ -213,130 +211,69 @@ USERNAME="user"
 PASSWORD="pass"
 PASSWORD_MD5="$(printf '%s' "$PASSWORD" | openssl md5 | awk '{print $2}')"
 
-curl -i "https://sync.koreader.rocks/users/create" \
+curl -i "[https://sync.koreader.rocks/users/create](https://sync.koreader.rocks/users/create)" \
   -H "Accept: application/vnd.koreader.v1+json" \
   -H "Content-Type: application/json" \
   --data "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD_MD5\"}"
 ```
+  Already have KOReader Sync credentials? Skip registration; basic sync only requires using the same existing username/password on all devices.
 
-Already have KOReader Sync credentials? Skip registration; basic sync only requires using the same existing username/password on all devices.
-
-When this returns `HTTP 402` with `{"code":2002,"message":"Username is already registered."}`, pick a different username or use that existing account.
-
-2. On each CrossPoint device:
-   - Go to **Settings -> System -> KOReader Sync**.
-   - Set **Username** and **Password** (enter the plain password; CrossPoint computes MD5 internally, and use the same values on all devices).
-   - Set **Sync Server URL** to `https://sync.koreader.rocks`, or leave it empty (both use the same default KOReader sync server).
-   - Run **Authenticate**.
-
+2. On each SEEK device:
+    
+    - Go to **Settings -> System -> KOReader Sync**.
+        
+    - Set **Username** and **Password** (enter the plain password; SEEK computes MD5 internally, and use the same values on all devices).
+        
+    - Set **Sync Server URL** to `https://sync.koreader.rocks`, or leave it empty.
+        
+    - Run **Authenticate**.
+        
 3. While reading, press **Confirm** to open the reader menu, then select **Sync Progress**.
-   - Choose **Apply Remote** to jump to remote progress.
-   - Choose **Upload Local** to push current progress.
+    
 
 ##### Option B: Self-Hosted Server (Docker Compose)
 
-1. Start a sync server:
-
-```bash
-mkdir -p kosync-quickstart
-cd kosync-quickstart
-
-cat > compose.yaml <<'YAML'
-services:
-  kosync:
-    image: koreader/kosync:latest
-    ports:
-      - "7200:7200"
-      - "17200:17200"
-    volumes:
-      - ./data/redis:/var/lib/redis
-    environment:
-      - ENABLE_USER_REGISTRATION=true
-    restart: unless-stopped
-YAML
-
-# Docker
-docker compose up -d
-
-# Podman (alternative)
-podman compose up -d
-```
-
-> [!NOTE]
-> `ENABLE_USER_REGISTRATION=true` is convenient for first setup. After creating your users, set it to `false` (or remove it) to avoid unexpected registrations.
-
-2. Verify the server:
-
-```bash
-curl -H "Accept: application/vnd.koreader.v1+json" "http://<server-ip>:17200/healthcheck"
-# Expected: {"state":"OK"}
-```
-
-3. Register a user once.
-CrossPoint authenticates against KOReader Sync (`koreader/kosync`) using an MD5 key, so register using the MD5 of your password:
-
-> [!WARNING]
-> Sending a reusable MD5-derived password over plain HTTP is insecure.
-> Create unique sync-only credentials and do not reuse main account passwords.
-> Prefer `https://<server-ip>:7200` whenever traffic leaves a fully trusted LAN or when using untrusted networks.
-> Use `curl -k` only for self-signed certificate testing.
-
-```bash
-USERNAME="user"
-PASSWORD="pass"
-PASSWORD_MD5="$(printf '%s' "$PASSWORD" | openssl md5 | awk '{print $2}')"
-
-curl -i "http://<server-ip>:17200/users/create" \
-  -H "Accept: application/vnd.koreader.v1+json" \
-  -H "Content-Type: application/json" \
-  --data "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD_MD5\"}"
-```
-
-If this returns `HTTP 402` with `{"code":2002,"message":"Username is already registered."}`, the account already exists.
-
-4. On each CrossPoint device:
-   - Go to **Settings -> System -> KOReader Sync**.
-   - Set **Username** and **Password** (enter the plain password; CrossPoint computes MD5 internally, and use the same values on all devices).
-   - Set **Sync Server URL** to `http://<server-ip>:17200`.
-   - Run **Authenticate**.
-
-If you use the HTTPS listener, use `https://<server-ip>:7200` (`curl -k` only for self-signed certificate testing).
-
-5. While reading, press **Confirm** to open the reader menu, then select **Sync Progress**.
-   - Choose **Apply Remote** to jump to remote progress.
-   - Choose **Upload Local** to push current progress.
+(For advanced setup using a self-hosted server, refer to the KOReader Sync documentation to deploy `koreader/kosync:latest`.)
 
 ### 3.7 Sleep Screen
 
 The **Sleep Screen** setting controls what is displayed when the device goes to sleep:
 
-| Mode | Behavior |
-|------|----------|
-| **Dark** (default) | The CrossPoint logo on a dark background. |
-| **Light** | The CrossPoint logo on a white background. |
-| **Custom** | A custom image from the SD card (see below). Falls back to **Dark** if no custom image is found. |
-| **Cover** | The cover of the currently open book. Falls back to **Dark** if no book is open. |
-| **Cover + Custom** | The cover of the currently open book. Falls back to **Custom** behavior if no book is open. |
-| **None** | A blank screen. |
+|**Mode**|**Behavior**|
+|---|---|
+|**Dark** (default)|The SEEK logo on a dark background.|
+|**Light**|The SEEK logo on a white background.|
+|**Custom**|A custom image from the SD card (see below). Falls back to **Dark** if no custom image is found.|
+|**Cover**|The cover of the currently open book. Falls back to **Dark** if no book is open.|
+|**Cover + Custom**|The cover of the currently open book. Falls back to **Custom** behavior if no book is open.|
+|**None**|A blank screen.|
 
 #### Cover settings
 
 When using **Cover** or **Cover + Custom**, two additional settings apply:
 
 - **Sleep Screen Cover Mode**: **Fit** (scale to fit, white borders) or **Crop** (scale and crop to fill the screen).
+    
 - **Sleep Screen Cover Filter**: **None** (grayscale), **Contrast** (black & white), or **Inverted** (inverted black & white).
+    
 
 #### Custom images
 
 To use custom sleep images, set the sleep screen mode to **Custom** or **Cover + Custom**, then place images on the SD card:
 
 - **Multiple Images (recommended):** Create a `.sleep` directory in the root of the SD card and place any number of `.bmp` images inside. One will be randomly selected each time the device sleeps. (A directory named `sleep` is also accepted as a fallback.)
+    
 - **Single Image:** Place a file named `sleep.bmp` in the root directory. This is used as a fallback if no valid images are found in the `.sleep`/`sleep` directory.
+    
 
 > [!TIP]
+> 
 > For best results:
+> 
 > - Use uncompressed BMP files with 24-bit color depth
+>     
 > - Use a resolution of 480x800 pixels to match the device's screen resolution.
+>     
 
 ---
 
@@ -345,33 +282,42 @@ To use custom sleep images, set the sleep screen mode to **Custom** or **Cover +
 Once you have opened a book, the button layout changes to facilitate reading.
 
 ### Page Turning
-| Action            | Buttons                              |
-| ----------------- | ------------------------------------ |
-| **Previous Page** | Press **Left** _or_ **Volume Up**    |
-| **Next Page**     | Press **Right** _or_ **Volume Down** |
 
-The role of the volume (side) buttons can be swapped in the **[Controls Settings](#363-controls)**.
+|**Action**|**Buttons**|
+|---|---|
+|**Previous Page**|Press **Left** _or_ **Volume Up**|
+|**Next Page**|Press **Right** _or_ **Volume Down**|
+
+The role of the volume (side) buttons can be swapped in the **[Controls Settings](https://www.google.com/search?q=%23363-controls)**.
 
 If the **Short Power Button Click** setting is set to "Page Turn", you can also turn to the next page by briefly pressing the Power button.
 
 ### Chapter Navigation
-* **Next Chapter:** Press and **hold** the **Right** (or **Volume Down**) button briefly, then release.
-* **Previous Chapter:** Press and **hold** the **Left** (or **Volume Up**) button briefly, then release.
 
-This feature can be disabled in the **[Controls Settings](#363-controls)** to help avoid changing chapters by mistake.
+- **Next Chapter:** Press and **hold** the **Right** (or **Volume Down**) button briefly, then release.
+    
+- **Previous Chapter:** Press and **hold** the **Left** (or **Volume Up**) button briefly, then release.
+    
 
+This feature can be disabled in the **[Controls Settings](https://www.google.com/search?q=%23363-controls)** to help avoid changing chapters by mistake.
 
 ### System Navigation
-* **Return to Home:** Press the **Back** button to close the book and return to the **[Home](#31-home-screen)** screen.
-* **Return to Browse Files:** Press and hold the **Back** button to close the book and return to the **[Browse Files](#33-browse-files-screen)** screen.
-* **Chapter Menu:** Press **Confirm** to open the **[Table of Contents/Chapter Selection](#5-chapter-selection-screen)** screen.
+
+- **Return to Home:** Press the **Back** button to close the book and return to the **[Home](https://www.google.com/search?q=%2331-home-screen)** screen.
+    
+- **Return to Browse Files:** Press and hold the **Back** button to close the book and return to the **[Browse Files](https://www.google.com/search?q=%2333-browse-files-screen)** screen.
+    
+- **Chapter Menu:** Press **Confirm** to open the **[Table of Contents/Chapter Selection](https://www.google.com/search?q=%235-chapter-selection-screen)** screen.
+    
 
 ### Supported Languages
 
-CrossPoint renders text using the following Unicode character blocks, enabling support for a wide range of languages:
+SEEK renders text using the following Unicode character blocks, enabling support for a wide range of languages:
 
-*   **Latin Script (Basic, Supplement, Extended-A):** Covers English, German, French, Spanish, Portuguese, Italian, Dutch, Swedish, Norwegian, Danish, Finnish, Polish, Czech, Hungarian, Romanian, Slovak, Slovenian, Turkish, and others.
-*   **Cyrillic Script (Standard and Extended):** Covers Russian, Ukrainian, Belarusian, Bulgarian, Serbian, Macedonian, Kazakh, Kyrgyz, Mongolian, and others.
+- **Latin Script (Basic, Supplement, Extended-A):** Covers English, German, French, Spanish, Portuguese, Italian, Dutch, Swedish, Norwegian, Danish, Finnish, Polish, Czech, Hungarian, Romanian, Slovak, Slovenian, Turkish, and others.
+    
+- **Cyrillic Script (Standard and Extended):** Covers Russian, Ukrainian, Belarusian, Bulgarian, Serbian, Macedonian, Kazakh, Kyrgyz, Mongolian, and others.
+    
 
 What is not supported: Chinese, Japanese, Korean, Vietnamese, Hebrew, Arabic, Greek and Farsi.
 
@@ -381,9 +327,12 @@ What is not supported: Chinese, Japanese, Korean, Vietnamese, Hebrew, Arabic, Gr
 
 Accessible by pressing **Confirm** while inside a book.
 
-1.  Use **Left** (or **Volume Up**), or **Right** (or **Volume Down**) to highlight the desired chapter.
-2.  Press **Confirm** to jump to that chapter.
-3.  *Alternatively, press **Back** to cancel and return to your current page.*
+1. Use **Left** (or **Volume Up**), or **Right** (or **Volume Down**) to highlight the desired chapter.
+    
+2. Press **Confirm** to jump to that chapter.
+    
+3. _Alternatively, press **Back** to cancel and return to your current page._
+    
 
 ---
 
@@ -391,14 +340,16 @@ Accessible by pressing **Confirm** while inside a book.
 
 Please note that this firmware is currently in active development. The following features are **not yet supported** but are planned for future updates:
 
-* **Images:** Embedded images in e-books will not render.
-* **Cover Images:** Large cover images embedded into EPUB require several seconds (~10s for ~2000 pixel tall image) to convert for sleep screen and home screen thumbnail. Consider optimizing the EPUB with e.g. https://github.com/bigbag/epub-to-xtc-converter to speed this up.
+- **Images:** Embedded images in e-books will not render.
+    
+- **Cover Images:** Large cover images embedded into EPUB require several seconds (~10s for ~2000 pixel tall image) to convert for sleep screen and home screen thumbnail. Consider optimizing the EPUB with e.g. https://github.com/bigbag/epub-to-xtc-converter to speed this up.
+    
 
 ---
 
 ## 7. Troubleshooting Issues & Escaping Bootloop
 
-If an issue or crash is encountered while using Crosspoint, feel free to raise an issue ticket and attach the serial monitor logs. The logs can be obtained by connecting the device to a computer and starting a serial monitor. Either [Serial Monitor](https://www.serialmonitor.org/) or the following command can be used:
+If an issue or crash is encountered while using SEEK, feel free to raise an issue ticket and attach the serial monitor logs. The logs can be obtained by connecting the device to a computer and starting a serial monitor.
 
 ```
 pio device monitor
@@ -406,4 +357,4 @@ pio device monitor
 
 If the device is stuck in a bootloop, press and release the Reset button. Then, press and hold on to the configured Back button and the Power Button to boot to the Home Screen.
 
-There can be issues with broken cache or config. In this case, delete the `.crosspoint` directory on your SD card (or consider deleting only `settings.bin`, `state.bin`, or `epub_*` cache directories in the `.crosspoint/` folder).
+There can be issues with broken cache or config. In this case, delete the `.crosspoint` directory on your SD card (the folder name `.crosspoint` is maintained for backward compatibility with older caches).
