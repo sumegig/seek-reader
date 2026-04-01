@@ -23,8 +23,8 @@
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
-#include "util/ScreenshotUtil.h"
 #include "stats/ReadingStatsManager.h"  // added when developing Statistics menu
+#include "util/ScreenshotUtil.h"
 
 namespace {
 // pagesPerRefresh now comes from SETTINGS.getRefreshFrequency()
@@ -46,7 +46,7 @@ int clampPercent(int percent) {
 
 void EpubReaderActivity::onEnter() {
   Activity::onEnter();
-  sessionPagesTurned = 0; // RESET: Ensure counter starts at zero for every session
+  sessionPagesTurned = 0;  // RESET: Ensure counter starts at zero for every session
 
   if (!epub) {
     return;
@@ -91,36 +91,31 @@ void EpubReaderActivity::onEnter() {
   // Trigger first update
   requestUpdate();
   // Generate thumbnail for Home screen
-    constexpr int HOME_THUMB_HEIGHT = 226;
-    if (!Storage.exists(epub->getThumbBmpPath(HOME_THUMB_HEIGHT).c_str())) {
-        epub->generateThumbBmp(HOME_THUMB_HEIGHT);
-    }
+  constexpr int HOME_THUMB_HEIGHT = 226;
+  if (!Storage.exists(epub->getThumbBmpPath(HOME_THUMB_HEIGHT).c_str())) {
+    epub->generateThumbBmp(HOME_THUMB_HEIGHT);
+  }
 
-    // Generate thumbnail exactly for Stats cover display to avoid pixelation
-    constexpr int STATS_THUMB_HEIGHT = 156;
-    if (!Storage.exists(epub->getThumbBmpPath(STATS_THUMB_HEIGHT).c_str())) {
-        epub->generateThumbBmp(STATS_THUMB_HEIGHT);
-    }
+  // Generate thumbnail exactly for Stats cover display to avoid pixelation
+  constexpr int STATS_THUMB_HEIGHT = 156;
+  if (!Storage.exists(epub->getThumbBmpPath(STATS_THUMB_HEIGHT).c_str())) {
+    epub->generateThumbBmp(STATS_THUMB_HEIGHT);
+  }
 
-    StatsManager.beginSession(
-      epub->getCachePath().c_str(),
-      epub->getTitle().c_str(),
-      epub->getAuthor().c_str(), // new
-      epub->getPath().c_str(),
-      epub->getThumbBmpPath().c_str(),
-      static_cast<uint8_t>(epub->calculateProgress(currentSpineIndex, 0.0f) * 100.0f)
-    );
+  StatsManager.beginSession(epub->getCachePath().c_str(), epub->getTitle().c_str(),
+                            epub->getAuthor().c_str(),  // new
+                            epub->getPath().c_str(), epub->getThumbBmpPath().c_str(),
+                            static_cast<uint8_t>(epub->calculateProgress(currentSpineIndex, 0.0f) * 100.0f));
 }
 
 void EpubReaderActivity::onExit() {
   // End reading stats session — compute current progress
   {
     const float chapterProg = (section && section->pageCount > 0)
-        ? static_cast<float>(section->currentPage) / static_cast<float>(section->pageCount)
-        : 0.0f;
-    const uint8_t prog = static_cast<uint8_t>(
-        epub->calculateProgress(currentSpineIndex, chapterProg) * 100.0f);
-    StatsManager.endSession(prog, sessionPagesTurned); // new
+                                  ? static_cast<float>(section->currentPage) / static_cast<float>(section->pageCount)
+                                  : 0.0f;
+    const uint8_t prog = static_cast<uint8_t>(epub->calculateProgress(currentSpineIndex, chapterProg) * 100.0f);
+    StatsManager.endSession(prog, sessionPagesTurned);  // new
   }
   Activity::onExit();
 
@@ -489,7 +484,7 @@ void EpubReaderActivity::toggleAutoPageTurn(const uint8_t selectedPageTurnOption
 
 void EpubReaderActivity::pageTurn(bool isForwardTurn) {
   if (isForwardTurn) {
-    sessionPagesTurned++; // new
+    sessionPagesTurned++;  // new
     if (section->currentPage < section->pageCount - 1) {
       section->currentPage++;
     } else {

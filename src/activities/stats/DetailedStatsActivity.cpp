@@ -1,12 +1,14 @@
 #include "DetailedStatsActivity.h"
+
 #include <Bitmap.h>
 #include <HalStorage.h>
 #include <I18n.h>
+
 #include <cstdio>
 
 #include "activities/ActivityManager.h"
 #include "components/UITheme.h"
-#include "components/themes/BaseTheme.h" // for GUI macro and drawButtonHints
+#include "components/themes/BaseTheme.h"  // for GUI macro and drawButtonHints
 #include "fontIds.h"
 #include "stats/ReadingStatsManager.h"
 
@@ -14,168 +16,162 @@ DetailedStatsActivity::DetailedStatsActivity(GfxRenderer& renderer, MappedInputM
     : Activity("DetailedStats", renderer, mappedInput), _bookIndex(bookIndex) {}
 
 void DetailedStatsActivity::onEnter() {
-    Activity::onEnter();
-    activityManager.requestUpdateAndWait();
+  Activity::onEnter();
+  activityManager.requestUpdateAndWait();
 }
 
-void DetailedStatsActivity::onExit() {
-    Activity::onExit();
-}
+void DetailedStatsActivity::onExit() { Activity::onExit(); }
 
 void DetailedStatsActivity::loop() {
-    // We can only go back to the list from this view
-    if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-        activityManager.popActivity();
-        return;
-    }
+  // We can only go back to the list from this view
+  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+    activityManager.popActivity();
+    return;
+  }
 }
 
 void DetailedStatsActivity::render(RenderLock&& lock) {
-    renderer.clearScreen();
-    renderDetailedGrid();
+  renderer.clearScreen();
+  renderDetailedGrid();
 
-    // Bottom button bar (Only Back button is functional)
-    // fixed: using a GUI macro 
-    GUI.drawButtonHints(renderer, tr(STR_BACK), "", "", "");
+  // Bottom button bar (Only Back button is functional)
+  // fixed: using a GUI macro
+  GUI.drawButtonHints(renderer, tr(STR_BACK), "", "", "");
 
-    renderer.displayBuffer();
+  renderer.displayBuffer();
 }
 
-
-
 void DetailedStatsActivity::renderDetailedGrid() const {
-    const auto& book = StatsManager.getBook(_bookIndex);
-    const auto& global = StatsManager.getGlobal();
-    char buf[64];
+  const auto& book = StatsManager.getBook(_bookIndex);
+  const auto& global = StatsManager.getGlobal();
+  char buf[64];
 
-    // Screen dimensions: 480x800 Portrait
-    const int screenW = 480; 
-    const int midY = 280; 
-    const int botY = 450; 
-    const int botY2 = 490;
-    const int gridBottom = 640; 
-    const int hintsH = UITheme::getInstance().getMetrics().buttonHintsHeight;
+  // Screen dimensions: 480x800 Portrait
+  const int screenW = 480;
+  const int midY = 280;
+  const int botY = 450;
+  const int botY2 = 490;
+  const int gridBottom = 640;
 
-    
-    // -- 1ST SECTION: Top Left - Cover --
-    // Adjusted for 480px width: Cover takes roughly 40% of width
-    const int coverPad = 15;
-    const int coverW = 180; 
-    const int coverH = 240; // 3:4 aspect ratio
-    const int coverX = coverPad;
-    const int coverY = coverPad;
+  // -- 1ST SECTION: Top Left - Cover --
+  // Adjusted for 480px width: Cover takes roughly 40% of width
+  const int coverPad = 15;
+  const int coverW = 180;
+  const int coverH = 240;  // 3:4 aspect ratio
+  const int coverX = coverPad;
+  const int coverY = coverPad;
 
-    bool coverFound = false;
-    // Using 226px height thumb as it fits perfectly here
-    std::string thumbPath = UITheme::getCoverThumbPath(std::string(book.thumbBmpPath), 226);
-    if (Storage.exists(thumbPath.c_str())) {
-        FsFile f;
-        if (Storage.openFileForRead("STATS", thumbPath.c_str(), f)) {
-            Bitmap bmp(f, false);
-            if (bmp.parseHeaders() == BmpReaderError::Ok) {
-                renderer.drawBitmap(bmp, coverX, coverY, coverW, coverH);
-                coverFound = true;
-            }
-            f.close();
-        }
+  bool coverFound = false;
+  // Using 226px height thumb as it fits perfectly here
+  std::string thumbPath = UITheme::getCoverThumbPath(std::string(book.thumbBmpPath), 226);
+  if (Storage.exists(thumbPath.c_str())) {
+    FsFile f;
+    if (Storage.openFileForRead("STATS", thumbPath.c_str(), f)) {
+      Bitmap bmp(f, false);
+      if (bmp.parseHeaders() == BmpReaderError::Ok) {
+        renderer.drawBitmap(bmp, coverX, coverY, coverW, coverH);
+        coverFound = true;
+      }
+      f.close();
     }
-    
-    if (!coverFound) {
-        drawCoverPlaceholder(coverX, coverY, coverW, coverH);
-    }
+  }
 
-    // -- 2ND SECTION: Top Right - Book info --
-    const int textX = coverX + coverW + 15;
-    int textY = coverY + 10;
+  if (!coverFound) {
+    drawCoverPlaceholder(coverX, coverY, coverW, coverH);
+  }
 
-    // Title - BOLD (Using UI_12_FONT_ID as UI_14/16 are not loaded)
-    renderer.drawText(UI_12_FONT_ID, textX, textY, book.title, true, EpdFontFamily::BOLD);
-    textY += 40;
+  // -- 2ND SECTION: Top Right - Book info --
+  const int textX = coverX + coverW + 15;
+  int textY = coverY + 10;
 
-    // Author
-    renderer.drawText(UI_12_FONT_ID, textX, textY, book.author, true, EpdFontFamily::REGULAR);
-    textY += 60;
+  // Title - BOLD (Using UI_12_FONT_ID as UI_14/16 are not loaded)
+  renderer.drawText(UI_12_FONT_ID, textX, textY, book.title, true, EpdFontFamily::BOLD);
+  textY += 40;
 
-    // Time spent
-    const uint32_t hours = book.totalReadingMs / 3600000;
-    const uint32_t mins = (book.totalReadingMs % 3600000) / 60000;
-    snprintf(buf, sizeof(buf), "%luh %lum", hours, mins);
-    renderer.drawText(UI_12_FONT_ID, textX, textY, buf, true);
-    textY += 35;
+  // Author
+  renderer.drawText(UI_12_FONT_ID, textX, textY, book.author, true, EpdFontFamily::REGULAR);
+  textY += 60;
 
-    // Sessions
-    snprintf(buf, sizeof(buf), "Sessions: %lu", book.sessionCount);
-    renderer.drawText(UI_12_FONT_ID, textX, textY, buf, true);
+  // Time spent
+  const uint32_t hours = book.totalReadingMs / 3600000;
+  const uint32_t mins = (book.totalReadingMs % 3600000) / 60000;
+  snprintf(buf, sizeof(buf), "%uh %um", hours, mins);
+  renderer.drawText(UI_12_FONT_ID, textX, textY, buf, true);
+  textY += 35;
 
-    // -- Draw Grid Lines --
-    renderer.drawLine(0, midY, screenW, midY, 4, true);
-    renderer.drawLine(0, botY, screenW, botY, 4, true);
-    renderer.drawLine(0, botY2, screenW, botY2, 4, true); // Second line for separating
-    renderer.drawLine(0, gridBottom, screenW, gridBottom, 4, true);
-    // Vertical divider
-    renderer.drawLine(screenW / 2, midY + 35, screenW / 2, botY, 3, true);
-    renderer.drawLine(screenW / 2, botY2 + 35, screenW / 2, gridBottom, 3, true);
+  // Sessions
+  snprintf(buf, sizeof(buf), "Sessions: %u", book.sessionCount);
+  renderer.drawText(UI_12_FONT_ID, textX, textY, buf, true);
 
-    // -- Section Headers (Visual Separation) --
-    // "This Book" header placed in center just below the first horizontal line
-    renderer.drawText(UI_10_FONT_ID, 197, midY + 8, "This Book", true, EpdFontFamily::BOLD);
-    
-    // "All Time" header placed in center just below the second horizontal line
-    renderer.drawText(UI_10_FONT_ID, 202, botY2 + 8, "All Time", true, EpdFontFamily::BOLD);
+  // -- Draw Grid Lines --
+  renderer.drawLine(0, midY, screenW, midY, 4, true);
+  renderer.drawLine(0, botY, screenW, botY, 4, true);
+  renderer.drawLine(0, botY2, screenW, botY2, 4, true);  // Second line for separating
+  renderer.drawLine(0, gridBottom, screenW, gridBottom, 4, true);
+  // Vertical divider
+  renderer.drawLine(screenW / 2, midY + 35, screenW / 2, botY, 3, true);
+  renderer.drawLine(screenW / 2, botY2 + 35, screenW / 2, gridBottom, 3, true);
 
-    // -- Floating Point Calculations for Precision --
-    const float totalMins = static_cast<float>(book.totalReadingMs) / 60000.0f;
-    
-    // Avg Min / Session (1 decimal place)
-    float avgMinSess = 0.0f;
-    if (book.sessionCount > 0) {
-        avgMinSess = totalMins / static_cast<float>(book.sessionCount);
-    }
+  // -- Section Headers (Visual Separation) --
+  // "This Book" header placed in center just below the first horizontal line
+  renderer.drawText(UI_10_FONT_ID, 197, midY + 8, "This Book", true, EpdFontFamily::BOLD);
 
-    // Avg Pages / Min (2 decimal places)
-    float avgPagesMin = 0.0f;
-    if (totalMins > 0.05f) { // Avoid division by near-zero
-        avgPagesMin = static_cast<float>(book.totalPagesRead) / totalMins;
-    }
+  // "All Time" header placed in center just below the second horizontal line
+  renderer.drawText(UI_10_FONT_ID, 202, botY2 + 8, "All Time", true, EpdFontFamily::BOLD);
 
-    // Global Hours (1 decimal place)
-    const float globalHours = static_cast<float>(global.totalReadingMs) / 3600000.0f;
+  // -- Floating Point Calculations for Precision --
+  const float totalMins = static_cast<float>(book.totalReadingMs) / 60000.0f;
 
-    // -- Render Bottom Grid with Precision --
-    
-    // Row 1: Avg Min/Sess | Avg Pages/Min
-    snprintf(buf, sizeof(buf), "%.1f", avgMinSess); // 1 decimal point
-    renderer.drawText(UI_12_FONT_ID, 100, botY - 100, buf, true, EpdFontFamily::BOLD);
-    renderer.drawText(UI_10_FONT_ID, 30, botY - 60, "  Avg min/session", true);
+  // Avg Min / Session (1 decimal place)
+  float avgMinSess = 0.0f;
+  if (book.sessionCount > 0) {
+    avgMinSess = totalMins / static_cast<float>(book.sessionCount);
+  }
 
-    snprintf(buf, sizeof(buf), "%.2f", avgPagesMin); // 2 decimal points
-    renderer.drawText(UI_12_FONT_ID, 340, botY - 100, buf, true, EpdFontFamily::BOLD);
-    renderer.drawText(UI_10_FONT_ID, 270, botY - 60, "   Avg pages/min", true);
+  // Avg Pages / Min (2 decimal places)
+  float avgPagesMin = 0.0f;
+  if (totalMins > 0.05f) {  // Avoid division by near-zero
+    avgPagesMin = static_cast<float>(book.totalPagesRead) / totalMins;
+  }
 
-    // Row 2: Finished | Total Hours
-    snprintf(buf, sizeof(buf), " %u", global.totalBooksFinished);
-    renderer.drawText(UI_12_FONT_ID, 100, gridBottom - 100, buf, true, EpdFontFamily::BOLD);
-    renderer.drawText(UI_10_FONT_ID, 40, gridBottom - 60, " Finished Books", true);
+  // Global Hours (1 decimal place)
+  const float globalHours = static_cast<float>(global.totalReadingMs) / 3600000.0f;
 
-    snprintf(buf, sizeof(buf), " %.1f", globalHours); // 1 decimal point
-    renderer.drawText(UI_12_FONT_ID, 340, gridBottom - 100, buf, true, EpdFontFamily::BOLD);
-    renderer.drawText(UI_10_FONT_ID, 260, gridBottom - 60, " Total reading hours", true);
+  // -- Render Bottom Grid with Precision --
+
+  // Row 1: Avg Min/Sess | Avg Pages/Min
+  snprintf(buf, sizeof(buf), "%.1f", avgMinSess);  // 1 decimal point
+  renderer.drawText(UI_12_FONT_ID, 100, botY - 100, buf, true, EpdFontFamily::BOLD);
+  renderer.drawText(UI_10_FONT_ID, 30, botY - 60, "  Avg min/session", true);
+
+  snprintf(buf, sizeof(buf), "%.2f", avgPagesMin);  // 2 decimal points
+  renderer.drawText(UI_12_FONT_ID, 340, botY - 100, buf, true, EpdFontFamily::BOLD);
+  renderer.drawText(UI_10_FONT_ID, 270, botY - 60, "   Avg pages/min", true);
+
+  // Row 2: Finished | Total Hours
+  snprintf(buf, sizeof(buf), " %u", global.totalBooksFinished);
+  renderer.drawText(UI_12_FONT_ID, 100, gridBottom - 100, buf, true, EpdFontFamily::BOLD);
+  renderer.drawText(UI_10_FONT_ID, 40, gridBottom - 60, " Finished Books", true);
+
+  snprintf(buf, sizeof(buf), " %.1f", globalHours);  // 1 decimal point
+  renderer.drawText(UI_12_FONT_ID, 340, gridBottom - 100, buf, true, EpdFontFamily::BOLD);
+  renderer.drawText(UI_10_FONT_ID, 260, gridBottom - 60, " Total reading hours", true);
 }
 
 void DetailedStatsActivity::drawCoverPlaceholder(int x, int y, int w, int h) const {
-    static constexpr const char* PLACEHOLDER_PATH = "/.crosspoint/system/BasicCover.bmp";
-    if (Storage.exists(PLACEHOLDER_PATH)) {
-        FsFile f;
-        if (Storage.openFileForRead("STATS", PLACEHOLDER_PATH, f)) {
-            Bitmap bmp(f, false);
-            if (bmp.parseHeaders() == BmpReaderError::Ok) {
-                renderer.drawRect(x, y, w, h, 2, true);
-                renderer.drawBitmap(bmp, x + 2, y + 2, w - 4, h - 4);
-                f.close();
-                return;
-            }
-            f.close();
-        }
+  static constexpr const char* PLACEHOLDER_PATH = "/.crosspoint/system/BasicCover.bmp";
+  if (Storage.exists(PLACEHOLDER_PATH)) {
+    FsFile f;
+    if (Storage.openFileForRead("STATS", PLACEHOLDER_PATH, f)) {
+      Bitmap bmp(f, false);
+      if (bmp.parseHeaders() == BmpReaderError::Ok) {
+        renderer.drawRect(x, y, w, h, 2, true);
+        renderer.drawBitmap(bmp, x + 2, y + 2, w - 4, h - 4);
+        f.close();
+        return;
+      }
+      f.close();
     }
-    renderer.drawRoundedRect(x, y, w, h, 1, 4, true);
+  }
+  renderer.drawRoundedRect(x, y, w, h, 1, 4, true);
 }
