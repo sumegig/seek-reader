@@ -10,17 +10,16 @@
 #include <Xtc.h>
 
 #include <cstring>
+#include <memory>
 #include <vector>
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "MappedInputManager.h"
 #include "RecentBooksStore.h"
+#include "activities/stats/StatsActivity.h"  // added when developing Statistics menu
 #include "components/UITheme.h"
 #include "fontIds.h"
-
-#include "activities/stats/StatsActivity.h"  // added when developing Statistics menu
-#include <memory>
 
 int HomeActivity::getMenuItemCount() const {
   int count = 4;  // File Browser, Recents, File transfer, Settings
@@ -187,9 +186,10 @@ void HomeActivity::loop() {
     requestUpdate();
   });
 
-  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) { 
-      activityManager.pushActivity(std::make_unique<StatsActivity>(renderer, mappedInput));  // added when developing Statistics menu
-      return;
+  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+    activityManager.pushActivity(
+        std::make_unique<StatsActivity>(renderer, mappedInput));  // added when developing Statistics menu
+    return;
   }
 
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {

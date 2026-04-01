@@ -24,9 +24,9 @@
 #include "activities/ActivityManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "stats/ReadingStatsManager.h"  // added when developing Statistics menu
 #include "util/ButtonNavigator.h"
 #include "util/ScreenshotUtil.h"
-#include "stats/ReadingStatsManager.h"  // added when developing Statistics menu
 
 HalDisplay display;
 HalGPIO gpio;
