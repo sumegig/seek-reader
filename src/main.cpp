@@ -283,7 +283,7 @@ void setup() {
   }
 
   // First serial output only here to avoid timing inconsistencies for power button press duration verification
-  LOG_DBG("MAIN", "Starting CrossPoint version " CROSSPOINT_VERSION);
+  LOG_DBG("MAIN", "Starting SEEK version " SEEKREADER_VERSION);
 
   setupDisplayAndFonts();
 
