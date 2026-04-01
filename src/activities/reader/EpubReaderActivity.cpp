@@ -46,6 +46,7 @@ int clampPercent(int percent) {
 
 void EpubReaderActivity::onEnter() {
   Activity::onEnter();
+  sessionPagesTurned = 0; // RESET: Ensure counter starts at zero for every session
 
   if (!epub) {
     return;
@@ -104,6 +105,7 @@ void EpubReaderActivity::onEnter() {
     StatsManager.beginSession(
       epub->getCachePath().c_str(),
       epub->getTitle().c_str(),
+      epub->getAuthor().c_str(), // new
       epub->getPath().c_str(),
       epub->getThumbBmpPath().c_str(),
       static_cast<uint8_t>(epub->calculateProgress(currentSpineIndex, 0.0f) * 100.0f)
@@ -118,7 +120,7 @@ void EpubReaderActivity::onExit() {
         : 0.0f;
     const uint8_t prog = static_cast<uint8_t>(
         epub->calculateProgress(currentSpineIndex, chapterProg) * 100.0f);
-    StatsManager.endSession(prog);
+    StatsManager.endSession(prog, sessionPagesTurned); // new
   }
   Activity::onExit();
 
@@ -487,6 +489,7 @@ void EpubReaderActivity::toggleAutoPageTurn(const uint8_t selectedPageTurnOption
 
 void EpubReaderActivity::pageTurn(bool isForwardTurn) {
   if (isForwardTurn) {
+    sessionPagesTurned++; // new
     if (section->currentPage < section->pageCount - 1) {
       section->currentPage++;
     } else {

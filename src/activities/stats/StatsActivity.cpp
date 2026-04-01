@@ -13,6 +13,7 @@
 #include "components/themes/BaseTheme.h"
 #include "fontIds.h"
 #include "stats/ReadingStatsManager.h"
+#include "DetailedStatsActivity.h" // detailedStatistics
 
 static constexpr int COVER_PAD = 6;
 
@@ -87,22 +88,29 @@ void StatsActivity::loop() {
 
     bool changed = false;
 
-    // Navigate up/left in the book list
-    if (mappedInput.wasReleased(MappedInputManager::Button::Up) ||
-        mappedInput.wasReleased(MappedInputManager::Button::Left)) {
+    // Navigate up in the book list
+    if (mappedInput.wasReleased(MappedInputManager::Button::Up)) {
         if (selectedBookIndex > 0) {
             selectedBookIndex--;
             changed = true;
         }
     }
 
-    // Navigate down/right in the book list
-    if (mappedInput.wasReleased(MappedInputManager::Button::Down) ||
-        mappedInput.wasReleased(MappedInputManager::Button::Right)) {
+    // Navigate down in the book list
+    if (mappedInput.wasReleased(MappedInputManager::Button::Down)) {
         if (selectedBookIndex < static_cast<int>(bookCount) - 1) {
             selectedBookIndex++;
             changed = true;
         }
+    }
+
+    // Open detailed stats (More...)
+    if (mappedInput.wasReleased(MappedInputManager::Button::Left)) {
+        // Pass the selected book index to the new Activity
+        activityManager.pushActivity(
+            std::make_unique<DetailedStatsActivity>(renderer, mappedInput, static_cast<uint8_t>(selectedBookIndex))
+        );
+        return;
     }
 
     // Open the selected book directly in the reader
@@ -146,12 +154,12 @@ void StatsActivity::render(RenderLock&& lock) {
     renderTopPanel(contentTop, topH, screenW);
     renderBookPanel(contentTop + topH, bottomH, screenW);
 
-    // Draw navigation button hints
+    // Draw navigation button hints (Back, Open, More..., [empty])
     GUI.drawButtonHints(renderer,
                         tr(STR_BACK),
                         tr(STR_OPEN),
-                        tr(STR_DIR_UP),
-                        tr(STR_DIR_DOWN));
+                        tr(STR_STATS_MORE),
+                        "");
 
     renderer.displayBuffer();
 }
@@ -209,11 +217,11 @@ void StatsActivity::renderTopPanel(int panelY, int panelH, int screenW) const {
              tr(STR_STATS_SESSIONS));
     renderer.drawText(UI_12_FONT_ID, col1X, row3Y, bufAllSess, true);
 
-    char bufLast7Sess[24];
-    snprintf(bufLast7Sess, sizeof(bufLast7Sess), "%u %s",
-             static_cast<unsigned>(StatsManager.getLast7SessionCount()),
-             tr(STR_STATS_SESSIONS));
-    renderer.drawText(UI_12_FONT_ID, col2X, row3Y, bufLast7Sess, true);
+    // char bufLast7Sess[24];                                                                      // commented because of wrong logic 
+    // snprintf(bufLast7Sess, sizeof(bufLast7Sess), "%u %s",
+    //          static_cast<unsigned>(StatsManager.getLast7SessionCount()),
+    //          tr(STR_STATS_SESSIONS));
+    // renderer.drawText(UI_12_FONT_ID, col2X, row3Y, bufLast7Sess, true);
 }
 
 

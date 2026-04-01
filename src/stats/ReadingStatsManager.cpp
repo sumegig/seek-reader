@@ -114,6 +114,7 @@ void ReadingStatsManager::sortByProgress() {
 
 void ReadingStatsManager::beginSession(const char* cacheKey,
                                         const char* title,
+                                        const char* author,
                                         const char* bookPath,
                                         const char* thumbBmpPath,
                                         uint8_t     progressPercent) {
@@ -131,6 +132,7 @@ void ReadingStatsManager::beginSession(const char* cacheKey,
         memset(&books[0], 0, sizeof(BookStatEntry));
         strncpy(books[0].cacheKey,     cacheKey,     sizeof(books[0].cacheKey)     - 1);
         strncpy(books[0].title,        title,        sizeof(books[0].title)        - 1);
+        strncpy(books[0].author,       author,       sizeof(books[0].author)       - 1); // NEW
         strncpy(books[0].bookPath,     bookPath,     sizeof(books[0].bookPath)     - 1);
         strncpy(books[0].thumbBmpPath, thumbBmpPath, sizeof(books[0].thumbBmpPath) - 1);
         books[0].progressPercent = progressPercent;
@@ -143,18 +145,19 @@ void ReadingStatsManager::beginSession(const char* cacheKey,
     sessionBookIndex = 0;
 }
 
-void ReadingStatsManager::endSession(uint8_t progressPercent) {
+
+void ReadingStatsManager::endSession(uint8_t progressPercent, uint32_t sessionPagesTurned) {
     if (!sessionActive) return;
     sessionActive = false;
 
     const TickType_t endTick   = xTaskGetTickCount();
     const uint32_t   elapsedMs = (endTick - sessionStartTick) * portTICK_PERIOD_MS;
 
-    const bool progressChanged =
-        (sessionBookIndex < global.bookCount) &&
-        (books[sessionBookIndex].progressPercent != progressPercent);
-
+    // Check for newly finished books before updating progress
     if (sessionBookIndex < global.bookCount) {
+        if (progressPercent == 100 && books[sessionBookIndex].progressPercent < 100) {
+            global.totalBooksFinished++;
+        }
         books[sessionBookIndex].progressPercent = progressPercent;
     }
 
@@ -164,6 +167,7 @@ void ReadingStatsManager::endSession(uint8_t progressPercent) {
         if (sessionBookIndex < global.bookCount) {
             books[sessionBookIndex].totalReadingMs += elapsedMs;
             books[sessionBookIndex].sessionCount++;
+            books[sessionBookIndex].totalPagesRead += sessionPagesTurned; // Tracking pages turned
         }
         global.totalReadingMs    += elapsedMs;
         global.totalSessionCount++;
@@ -175,6 +179,8 @@ void ReadingStatsManager::endSession(uint8_t progressPercent) {
         }
     }
 
+    // Save if time threshold reached or progress moved
+    const bool progressChanged = (sessionBookIndex < global.bookCount); 
     if (longEnough || progressChanged) {
         sortByProgress();
         save();
