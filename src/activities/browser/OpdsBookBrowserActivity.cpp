@@ -78,7 +78,7 @@ void OpdsBookBrowserActivity::loop() {
   // Handle WiFi check state - only Back works
   if (state == BrowserState::CHECK_WIFI) {
     if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-      onGoHome();
+      activityManager.popActivity();  // change from Home to Apps
     }
     return;
   }
@@ -289,8 +289,8 @@ void OpdsBookBrowserActivity::navigateToEntry(const OpdsEntry& entry) {
 
 void OpdsBookBrowserActivity::navigateBack() {
   if (navigationHistory.empty()) {
-    // At root, go home
-    onGoHome();
+    // At root, go to Apps
+    activityManager.popActivity();
   } else {
     // Go back to previous catalog
     currentPath = navigationHistory.back();

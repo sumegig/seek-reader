@@ -51,7 +51,7 @@ void CrossPointWebServerActivity::onEnter() {
   startActivityForResult(std::make_unique<NetworkModeSelectionActivity>(renderer, mappedInput),
                          [this](const ActivityResult& result) {
                            if (result.isCancelled) {
-                             onGoHome();
+                             activityManager.popActivity();
                            } else {
                              onNetworkModeSelected(std::get<NetworkModeResult>(result.data).mode);
                            }
@@ -119,7 +119,7 @@ void CrossPointWebServerActivity::onNetworkModeSelected(const NetworkMode mode) 
           startActivityForResult(std::make_unique<NetworkModeSelectionActivity>(renderer, mappedInput),
                                  [this](const ActivityResult& result) {
                                    if (result.isCancelled) {
-                                     onGoHome();
+                                     activityManager.popActivity();  // change from Home to Apps
                                    } else {
                                      onNetworkModeSelected(std::get<NetworkModeResult>(result.data).mode);
                                    }
@@ -173,7 +173,7 @@ void CrossPointWebServerActivity::onWifiSelectionComplete(const bool connected) 
     startActivityForResult(std::make_unique<NetworkModeSelectionActivity>(renderer, mappedInput),
                            [this](const ActivityResult& result) {
                              if (result.isCancelled) {
-                               onGoHome();
+                               activityManager.popActivity();
                              } else {
                                onNetworkModeSelected(std::get<NetworkModeResult>(result.data).mode);
                              }
@@ -200,7 +200,7 @@ void CrossPointWebServerActivity::startAccessPoint() {
 
   if (!apStarted) {
     LOG_ERR("WEBACT", "ERROR: Failed to start Access Point!");
-    onGoHome();
+    activityManager.popActivity();
     return;
   }
 
@@ -255,7 +255,7 @@ void CrossPointWebServerActivity::startWebServer() {
     LOG_ERR("WEBACT", "ERROR: Failed to start web server!");
     webServer.reset();
     // Go back on error
-    onGoHome();
+    activityManager.popActivity();
   }
 }
 
@@ -325,8 +325,8 @@ void CrossPointWebServerActivity::loop() {
           // for back button checking
           mappedInput.update();
           // Check for exit button inside loop for responsiveness
-          if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
-            onGoHome();
+          if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+            activityManager.popActivity();  // change from Home to Apps
             return;
           }
         }
@@ -335,8 +335,8 @@ void CrossPointWebServerActivity::loop() {
     }
 
     // Handle exit on Back button (also check outside loop)
-    if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
-      onGoHome();
+    if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+      activityManager.popActivity();  // change from Home to Apps
       return;
     }
   }

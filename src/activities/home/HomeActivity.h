@@ -15,22 +15,22 @@ class HomeActivity final : public Activity {
   bool recentsLoading = false;
   bool recentsLoaded = false;
   bool firstRenderDone = false;
-  bool hasOpdsUrl = false;
-  bool coverRendered = false;      // Track if cover has been rendered once
-  bool coverBufferStored = false;  // Track if cover buffer is stored
-  uint8_t* coverBuffer = nullptr;  // HomeActivity's own buffer for cover image
+  bool coverRendered = false;
+  bool coverBufferStored = false;
+  uint8_t* coverBuffer = nullptr;
   std::vector<RecentBook> recentBooks;
+
   void onSelectBook(const std::string& path);
   void onFileBrowserOpen();
   void onRecentsOpen();
   void onSettingsOpen();
-  void onFileTransferOpen();
-  void onOpdsBrowserOpen();
+  // Removed OPDS and File Transfer actions, added Apps
+  void onAppsOpen();
 
   int getMenuItemCount() const;
-  bool storeCoverBuffer();    // Store frame buffer for cover image
-  bool restoreCoverBuffer();  // Restore frame buffer from stored cover
-  void freeCoverBuffer();     // Free the stored cover buffer
+  bool storeCoverBuffer();
+  bool restoreCoverBuffer();
+  void freeCoverBuffer();
   void loadRecentBooks(int maxBooks);
   void loadRecentCovers(int coverHeight);
 
