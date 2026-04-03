@@ -50,7 +50,8 @@ void StatsActivity::formatPercent(char* buf, size_t bufLen, uint8_t percent) {
 uint8_t StatsActivity::getVisibleBookCount() {
   uint8_t count = 0;
   for (uint8_t i = 0; i < StatsManager.getBookCount(); ++i) {
-    if (StatsManager.getBook(i).progressPercent < 100) {
+    // Filter logic aligns with HomeActivity to handle floating point truncation
+    if (StatsManager.getBook(i).progressPercent < 95) {
       count++;
     }
   }
@@ -101,17 +102,33 @@ void StatsActivity::loop() {
     }
   }
 
+  // --- MEMORY MAPPING LOGIC ---
+  // We need to map the visual UI index (selectedBookIndex) to the actual index
+  // in the StatsManager memory, explicitly skipping finished books (>= 95%).
+  uint8_t actualMemoryIndex = 0;
+  int currentUnfinished = 0;
+  
+  for (uint8_t j = 0; j < StatsManager.getBookCount(); ++j) {
+    if (StatsManager.getBook(j).progressPercent >= 95) continue;
+    
+    if (currentUnfinished == selectedBookIndex) {
+      actualMemoryIndex = j;
+      break;
+    }
+    currentUnfinished++;
+  }
+
   // Open detailed stats (More...)
   if (mappedInput.wasReleased(MappedInputManager::Button::Left)) {
-    // Pass the selected book index to the new Activity
+    // Pass the correctly mapped book index to the new Activity
     activityManager.pushActivity(
-        std::make_unique<DetailedStatsActivity>(renderer, mappedInput, static_cast<uint8_t>(selectedBookIndex)));
+        std::make_unique<DetailedStatsActivity>(renderer, mappedInput, actualMemoryIndex));
     return;
   }
 
   // Open the selected book directly in the reader
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    const BookStatEntry& book = StatsManager.getBook(static_cast<uint8_t>(selectedBookIndex));
+    const BookStatEntry& book = StatsManager.getBook(actualMemoryIndex);
     if (book.bookPath[0] != '\0') {
       activityManager.goToReader(std::string(book.bookPath));
     }
@@ -198,12 +215,6 @@ void StatsActivity::renderTopPanel(int panelY, int panelH, int screenW) const {
   snprintf(bufAllSess, sizeof(bufAllSess), "%u %s", static_cast<unsigned>(global.totalSessionCount),
            tr(STR_STATS_SESSIONS));
   renderer.drawText(UI_12_FONT_ID, col1X, row3Y, bufAllSess, true);
-
-  // char bufLast7Sess[24];                                                                      // commented because of
-  // wrong logic snprintf(bufLast7Sess, sizeof(bufLast7Sess), "%u %s",
-  //          static_cast<unsigned>(StatsManager.getLast7SessionCount()),
-  //          tr(STR_STATS_SESSIONS));
-  // renderer.drawText(UI_12_FONT_ID, col2X, row3Y, bufLast7Sess, true);
 }
 
 // -----------------------------------------------------------------------
@@ -227,10 +238,28 @@ void StatsActivity::renderBookPanel(int panelY, int panelH, int screenW) const {
 
   // Render each visible row
   for (int i = 0; i < visibleCount; ++i) {
-    const int bookIdx = scrollOffset + i;
+    const int visibleIdx = scrollOffset + i;
     const int rowY = panelY + i * rowH;
-    renderBookRow(0, rowY, screenW, rowH, StatsManager.getBook(static_cast<uint8_t>(bookIdx)),
-                  bookIdx == selectedBookIndex);
+
+    // --- MEMORY MAPPING LOGIC ---
+    // Safely retrieve the actual book from memory, jumping over finished books
+    const BookStatEntry* targetBook = nullptr;
+    int currentUnfinished = 0;
+    
+    for (uint8_t j = 0; j < StatsManager.getBookCount(); ++j) {
+      if (StatsManager.getBook(j).progressPercent >= 95) continue;
+      
+      if (currentUnfinished == visibleIdx) {
+        targetBook = &StatsManager.getBook(j);
+        break;
+      }
+      currentUnfinished++;
+    }
+
+    // Render the row using the mapped book
+    if (targetBook) {
+      renderBookRow(0, rowY, screenW, rowH, *targetBook, visibleIdx == selectedBookIndex);
+    }
   }
 }
 
@@ -323,38 +352,15 @@ void StatsActivity::renderBookRow(int rowX, int rowY, int rowW, int rowH, const 
 
 /**
  * @brief Draws a fallback placeholder when a book cover is missing.
- * * Attempts to load a default placeholder image (BasicCover.bmp) from the
- * system directory. If the file is missing or corrupt, it falls back to
- * drawing a simple rounded rectangle outline to maintain UI structure.
  */
 void StatsActivity::drawCoverPlaceholder(int x, int y, int w, int h) const {
-  static constexpr const char* PLACEHOLDER_PATH = "/.crosspoint/system/BasicCover.bmp";
-
-  if (Storage.exists(PLACEHOLDER_PATH)) {
-    FsFile f;
-    if (Storage.openFileForRead("STATS", PLACEHOLDER_PATH, f)) {
-      Bitmap bmp(f, false);
-      if (bmp.parseHeaders() == BmpReaderError::Ok) {
-        // Draw a border and fit the image inside
-        renderer.drawRect(x, y, w, h, 2, true);
-        renderer.drawBitmap(bmp, x + 2, y + 2, w - 4, h - 4);
-        f.close();
-        return;  // Successfully rendered placeholder
-      }
-      f.close();
-    }
-  }
-
-  // Safe fallback if the SD card file is missing or unreadable
-  renderer.drawRoundedRect(x, y, w, h, 1, 4, true);
+  // CRITICAL: Ensure the 'fill' parameter is 'false' so we do not draw a black box over the area.
+  renderer.drawRoundedRect(x, y, w, h, 1, 4, false);
 }
 
 /**
  * @brief Loads and renders the thumbnail generated by EpubReaderActivity.
- * * Includes a cascading fallback mechanism for cover resolutions:
- * 1. Tries to load the pixel-perfect 156px height cover (Stats specific).
- * 2. Falls back to the 226px height cover (Home screen specific).
- * 3. Falls back to the legacy 400px height cover.
+ * * Includes a cascading fallback mechanism synchronized with the HomeActivity architecture.
  * * @return true if a valid cover was found and successfully rendered.
  */
 bool StatsActivity::loadAndDrawCover(int x, int y, int w, int h, const BookStatEntry& book) const {
@@ -366,21 +372,13 @@ bool StatsActivity::loadAndDrawCover(int x, int y, int w, int h, const BookStatE
   std::string thumbPath;
   bool found = false;
 
-  // Attempt 1: Pixel-perfect 156px version (generated specifically for Stats screen to avoid E-ink scaling artifacts)
-  thumbPath = UITheme::getCoverThumbPath(std::string(book.thumbBmpPath), 156);
-  if (Storage.exists(thumbPath.c_str())) {
-    found = true;
-  } else {
-    // Attempt 2: Fallback to 226px version (generated for Home screen or manually added)
-    thumbPath = UITheme::getCoverThumbPath(std::string(book.thumbBmpPath), 226);
+  // The fallback array matches the target resolutions configured in HomeActivity
+  std::vector<int> fallbacks = {156, 234, 226, 340, 400};
+  for (int res : fallbacks) {
+    thumbPath = UITheme::getCoverThumbPath(std::string(book.thumbBmpPath), res);
     if (Storage.exists(thumbPath.c_str())) {
       found = true;
-    } else {
-      // Attempt 3: Legacy fallback to 400px version
-      thumbPath = UITheme::getCoverThumbPath(std::string(book.thumbBmpPath), 400);
-      if (Storage.exists(thumbPath.c_str())) {
-        found = true;
-      }
+      break;
     }
   }
 
@@ -388,8 +386,6 @@ bool StatsActivity::loadAndDrawCover(int x, int y, int w, int h, const BookStatE
     LOG_DBG("STATS", "Cover: No suitable resolution found for '%s'", book.thumbBmpPath);
     return false;
   }
-
-  LOG_DBG("STATS", "Cover: Loading resolved path '%s'", thumbPath.c_str());
 
   FsFile f;
   if (!Storage.openFileForRead("STATS", thumbPath.c_str(), f)) return false;
@@ -400,8 +396,13 @@ bool StatsActivity::loadAndDrawCover(int x, int y, int w, int h, const BookStatE
     return false;
   }
 
-  // Render the loaded bitmap into the specified dimensionss
+  // Clear area with white (false) before rendering the image
+  renderer.fillRect(x, y, w, h, false);
+  
+  // Fast Path: Direct draw. The scaling artifacts on the E-ink screen are minimized here since
+  // the Stats layout uses aspect fit by default.
   renderer.drawBitmap(bmp, x, y, w, h);
+  
   f.close();
   return true;
 }
