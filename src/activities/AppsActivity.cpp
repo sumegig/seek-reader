@@ -60,7 +60,7 @@ void AppsActivity::loop() {
 
     // Callback that runs when we return to this Apps menu from any sub-activity
     auto onSubActivityReturned = [this](const ActivityResult& result) {
-      // Reset the cooldown timer to prevent the bouncing/ping-pong effect 
+      // Reset the cooldown timer to prevent the bouncing/ping-pong effect
       // of the Back button being pressed during the transition.
       enterTime = xTaskGetTickCount();
     };
@@ -69,7 +69,8 @@ void AppsActivity::loop() {
     if (selectorIndex == statsIdx) {
       startActivityForResult(std::make_unique<StatsActivity>(renderer, mappedInput), onSubActivityReturned);
     } else if (selectorIndex == fileTransferIdx) {
-      startActivityForResult(std::make_unique<CrossPointWebServerActivity>(renderer, mappedInput), onSubActivityReturned);
+      startActivityForResult(std::make_unique<CrossPointWebServerActivity>(renderer, mappedInput),
+                             onSubActivityReturned);
     } else if (selectorIndex == opdsLibraryIdx) {
       startActivityForResult(std::make_unique<OpdsBookBrowserActivity>(renderer, mappedInput), onSubActivityReturned);
     }

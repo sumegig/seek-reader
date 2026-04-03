@@ -107,10 +107,10 @@ void StatsActivity::loop() {
   // in the StatsManager memory, explicitly skipping finished books (>= 95%).
   uint8_t actualMemoryIndex = 0;
   int currentUnfinished = 0;
-  
+
   for (uint8_t j = 0; j < StatsManager.getBookCount(); ++j) {
     if (StatsManager.getBook(j).progressPercent >= 95) continue;
-    
+
     if (currentUnfinished == selectedBookIndex) {
       actualMemoryIndex = j;
       break;
@@ -121,8 +121,7 @@ void StatsActivity::loop() {
   // Open detailed stats (More...)
   if (mappedInput.wasReleased(MappedInputManager::Button::Left)) {
     // Pass the correctly mapped book index to the new Activity
-    activityManager.pushActivity(
-        std::make_unique<DetailedStatsActivity>(renderer, mappedInput, actualMemoryIndex));
+    activityManager.pushActivity(std::make_unique<DetailedStatsActivity>(renderer, mappedInput, actualMemoryIndex));
     return;
   }
 
@@ -245,10 +244,10 @@ void StatsActivity::renderBookPanel(int panelY, int panelH, int screenW) const {
     // Safely retrieve the actual book from memory, jumping over finished books
     const BookStatEntry* targetBook = nullptr;
     int currentUnfinished = 0;
-    
+
     for (uint8_t j = 0; j < StatsManager.getBookCount(); ++j) {
       if (StatsManager.getBook(j).progressPercent >= 95) continue;
-      
+
       if (currentUnfinished == visibleIdx) {
         targetBook = &StatsManager.getBook(j);
         break;
@@ -398,11 +397,11 @@ bool StatsActivity::loadAndDrawCover(int x, int y, int w, int h, const BookStatE
 
   // Clear area with white (false) before rendering the image
   renderer.fillRect(x, y, w, h, false);
-  
+
   // Fast Path: Direct draw. The scaling artifacts on the E-ink screen are minimized here since
   // the Stats layout uses aspect fit by default.
   renderer.drawBitmap(bmp, x, y, w, h);
-  
+
   f.close();
   return true;
 }
