@@ -11,19 +11,19 @@ struct Rect;
 
 class HomeActivity final : public Activity {
   ButtonNavigator buttonNavigator;
-  
+
   // Dual-focus state
   int carouselSelectedIndex = 0;
   bool carouselFocused = true;
-  int menuSelectedTileIndex = 0; // Most már csak 0-2 (3 opció)
+  int menuSelectedTileIndex = 0;  // Most már csak 0-2 (3 opció)
 
   bool recentsLoading = false;
   bool recentsLoaded = false;
   bool firstRenderDone = false;
-  
+
   bool coverBufferStored = false;
   uint8_t* coverBuffer = nullptr;
-  
+
   // Külön változók a két sor renderelésének követéséhez
   bool row1Rendered = false;
   bool row1Stored = false;
