@@ -96,7 +96,7 @@ void ReadingStatsManager::bringBookToFront(uint8_t index) {
 }
 
 void ReadingStatsManager::sortByProgress() {
-  // Insertion sort descending by progressPercent — max 5 elements
+  // Insertion sort descending by progressPercent — max 9 elements
   for (uint8_t i = 1; i < global.bookCount; ++i) {
     BookStatEntry tmp;
     memcpy(&tmp, &books[i], sizeof(BookStatEntry));
@@ -125,7 +125,7 @@ void ReadingStatsManager::beginSession(const char* cacheKey, const char* title, 
     memset(&books[0], 0, sizeof(BookStatEntry));
     strncpy(books[0].cacheKey, cacheKey, sizeof(books[0].cacheKey) - 1);
     strncpy(books[0].title, title, sizeof(books[0].title) - 1);
-    strncpy(books[0].author, author, sizeof(books[0].author) - 1);  // NEW
+    strncpy(books[0].author, author, sizeof(books[0].author) - 1);  
     strncpy(books[0].bookPath, bookPath, sizeof(books[0].bookPath) - 1);
     strncpy(books[0].thumbBmpPath, thumbBmpPath, sizeof(books[0].thumbBmpPath) - 1);
     books[0].progressPercent = progressPercent;

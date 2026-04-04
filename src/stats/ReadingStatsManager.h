@@ -8,10 +8,10 @@
 
 #include "Logging.h"
 
-static constexpr uint8_t STATS_MAX_BOOK_ENTRIES = 5;
+static constexpr uint8_t STATS_MAX_BOOK_ENTRIES = 9;
 static constexpr uint32_t STATS_MIN_SESSION_MS = 5UL * 60UL * 1000UL;
 static constexpr uint8_t STATS_SESSION_RING_SIZE = 7;
-static constexpr uint8_t STATS_FILE_VERSION = 4;  // UPDATE: bumped from 3 to 4
+static constexpr uint8_t STATS_FILE_VERSION = 5;  // UPDATE: bumped from 4 to 5
 static constexpr const char* STATS_FILE_PATH = "/.crosspoint/stats.bin";
 
 // -----------------------------------------------------------------------
