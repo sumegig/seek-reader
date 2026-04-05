@@ -30,12 +30,9 @@ bool HomeActivity::isRecent6Theme() const {
 // Original 1D Menu Helpers
 // ============================================================================
 int HomeActivity::getMenuItemCount() const {
-  int count = 4;  // File Browser, Recents, File transfer, Settings
+  int count = 4;  // File Browser, Recent Books, Apps, Settings
   if (!recentBooks.empty()) {
     count += recentBooks.size();
-  }
-  if (hasOpdsUrl) {
-    count++;
   }
   return count;
 }
@@ -48,7 +45,6 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
   const auto& books = RECENT_BOOKS.getBooks();
 
   if (isRecent6Theme()) {
-    // RECENT6 Theme Loading
     recentBooksRow1.clear();
     recentBooksRow2.clear();
     totalRecentBooks = 0;
@@ -67,7 +63,6 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
       totalRecentBooks++;
     }
   } else {
-    // Original Theme Loading
     recentBooks.clear();
     recentBooks.reserve(std::min(static_cast<int>(books.size()), maxBooks));
 
@@ -86,7 +81,6 @@ void HomeActivity::loadRecentCovers(int coverHeight) {
   Rect popupRect;
   int progress = 0;
 
-  // Helper lambda to process a single book
   auto processBook = [&](RecentBook& book, int totalBooks) {
     if (!book.coverBmpPath.empty()) {
       std::string coverPath = UITheme::getCoverThumbPath(book.coverBmpPath, coverHeight);
@@ -107,7 +101,6 @@ void HomeActivity::loadRecentCovers(int coverHeight) {
             book.coverBmpPath = "";
           }
           
-          // Reset rendering flags
           if (isRecent6Theme()) {
              row1Rendered = false;
              row2Rendered = false;
@@ -116,7 +109,6 @@ void HomeActivity::loadRecentCovers(int coverHeight) {
           }
           requestUpdate();
         } else if (FsHelpers::hasXtcExtension(book.path) && !isRecent6Theme()) {
-          // XTC handling (Original themes only)
           Xtc xtc(book.path, "/.crosspoint");
           if (xtc.load()) {
             if (!showingLoading) {
@@ -210,8 +202,7 @@ void HomeActivity::onSelectBook(const std::string& path) { activityManager.goToR
 void HomeActivity::onFileBrowserOpen() { activityManager.goToFileBrowser(); }
 void HomeActivity::onRecentsOpen() { activityManager.goToRecentBooks(); }
 void HomeActivity::onSettingsOpen() { activityManager.goToSettings(); }
-void HomeActivity::onFileTransferOpen() { activityManager.goToFileTransfer(); }
-void HomeActivity::onOpdsBrowserOpen() { activityManager.goToBrowser(); }
+// Az AppsActivity elindítása az Activity Stack-en keresztül történik (pushActivity)
 void HomeActivity::onAppsOpen() { activityManager.pushActivity(std::make_unique<AppsActivity>(renderer, mappedInput)); }
 
 // ============================================================================
@@ -222,13 +213,12 @@ void HomeActivity::onEnter() {
   Activity::onEnter();
 
   const auto& metrics = UITheme::getInstance().getMetrics();
-  hasOpdsUrl = strlen(SETTINGS.opdsServerUrl) > 0; 
   
   if (isRecent6Theme()) {
       carouselSelectedIndex = 0;
       carouselFocused = true;
       menuSelectedTileIndex = 0;
-      loadRecentBooks(6); // Max 6 for Recent6
+      loadRecentBooks(6);
   } else {
       selectorIndex = 0;
       loadRecentBooks(metrics.homeRecentBooksCount);
@@ -328,9 +318,8 @@ void HomeActivity::loop() {
       int menuSelectedIndex = selectorIndex - static_cast<int>(recentBooks.size());
       const int fileBrowserIdx = idx++;
       const int recentsIdx = idx++;
-      const int opdsLibraryIdx = hasOpdsUrl ? idx++ : -1;
-      const int fileTransferIdx = idx++;
-      const int settingsIdx = idx;
+      const int appsIdx = idx++;
+      const int settingsIdx = idx++;
 
       if (selectorIndex < recentBooks.size()) {
         onSelectBook(recentBooks[selectorIndex].path);
@@ -338,10 +327,8 @@ void HomeActivity::loop() {
         onFileBrowserOpen();
       } else if (menuSelectedIndex == recentsIdx) {
         onRecentsOpen();
-      } else if (menuSelectedIndex == opdsLibraryIdx) {
-        onOpdsBrowserOpen();
-      } else if (menuSelectedIndex == fileTransferIdx) {
-        onFileTransferOpen();
+      } else if (menuSelectedIndex == appsIdx) {
+        onAppsOpen();
       } else if (menuSelectedIndex == settingsIdx) {
         onSettingsOpen();
       }
@@ -437,20 +424,21 @@ void HomeActivity::render(RenderLock&&) {
                             recentBooks, selectorIndex, coverRendered, coverBufferStored, bufferRestored,
                             std::bind(&HomeActivity::storeCoverBuffer, this));
 
-    std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_MENU_RECENT_BOOKS), tr(STR_FILE_TRANSFER),
+    // Simple, fix menu for original themes
+    std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_MENU_RECENT_BOOKS), tr(STR_APPS),
                                           tr(STR_SETTINGS_TITLE)};
-    std::vector<UIIcon> menuIcons = {Folder, Recent, Transfer, Settings};
+    
+    // UIIcon::Library for Apps menu icon
+    std::vector<UIIcon> menuIcons = {Folder, Recent, Library, Settings};
 
-    if (hasOpdsUrl) {
-      menuItems.insert(menuItems.begin() + 2, tr(STR_OPDS_BROWSER));
-      menuIcons.insert(menuIcons.begin() + 2, Library);
-    }
+    // bottom 1/3
+    const int bottomMargin = 20;
+    const int menuHeight = (pageHeight / 3) - 15; 
+    const int menuY = pageHeight - menuHeight - metrics.buttonHintsHeight - bottomMargin;
 
     GUI.drawButtonMenu(
         renderer,
-        Rect{0, metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.verticalSpacing, pageWidth,
-             pageHeight - (metrics.headerHeight + metrics.homeTopPadding + metrics.verticalSpacing * 2 +
-                           metrics.buttonHintsHeight)},
+        Rect{0, menuY, pageWidth, menuHeight},
         static_cast<int>(menuItems.size()), selectorIndex - recentBooks.size(),
         [&menuItems](int index) { return std::string(menuItems[index]); },
         [&menuIcons](int index) { return menuIcons[index]; });

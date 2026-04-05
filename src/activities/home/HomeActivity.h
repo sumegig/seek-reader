@@ -21,7 +21,6 @@ class HomeActivity final : public Activity {
 
   // --- Original 1D Theme State ---
   int selectorIndex = 0;
-  bool hasOpdsUrl = false;
   bool coverRendered = false;
   std::vector<RecentBook> recentBooks;
 
@@ -45,9 +44,7 @@ class HomeActivity final : public Activity {
   void onFileBrowserOpen();
   void onRecentsOpen();
   void onSettingsOpen();
-  void onFileTransferOpen();
-  void onOpdsBrowserOpen();
-  void onAppsOpen(); // Apps Activity from your version
+  void onAppsOpen(); // Every theme uses this from now on Instead of File transfer and OPDS
 
   bool storeCoverBuffer();
   bool restoreCoverBuffer();
@@ -56,7 +53,7 @@ class HomeActivity final : public Activity {
   void loadRecentBooks(int maxBooks);
   void loadRecentCovers(int coverHeight);
 
-  // Navigation (Recent6)
+  // Navigáció (Recent6)
   void focusCarousel();
   void focusMenu();
   void launchSelectedActivity();
