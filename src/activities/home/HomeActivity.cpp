@@ -173,11 +173,6 @@ void HomeActivity::freeCoverBuffer() {
 // Navigation Routing (Recent6 specific)
 // ============================================================================
 
-void HomeActivity::focusCarousel() {
-  carouselFocused = true;
-  requestUpdate();
-}
-
 void HomeActivity::focusMenu() {
   carouselFocused = false;
   menuSelectedTileIndex = 0;
