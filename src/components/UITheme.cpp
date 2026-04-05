@@ -46,7 +46,7 @@ void UITheme::setTheme(CrossPointSettings::UI_THEME type) {
       currentMetrics = &Lyra3CoversMetrics::values;
       break;
     case CrossPointSettings::UI_THEME::RECENT6:
-      // A Recent6 based on Lyra 3 Covers rendering technique 
+      // A Recent6 based on Lyra 3 Covers rendering technique
       LOG_DBG("UI", "Using Recent6 theme");
       currentTheme = std::make_unique<Lyra3CoversTheme>();
       currentMetrics = &Lyra3CoversMetrics::values;

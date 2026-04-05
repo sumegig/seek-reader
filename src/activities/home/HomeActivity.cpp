@@ -22,9 +22,7 @@
 #include "fontIds.h"
 
 // Helper to check current theme
-bool HomeActivity::isRecent6Theme() const {
-  return SETTINGS.uiTheme == CrossPointSettings::UI_THEME::RECENT6;
-}
+bool HomeActivity::isRecent6Theme() const { return SETTINGS.uiTheme == CrossPointSettings::UI_THEME::RECENT6; }
 
 // ============================================================================
 // Original 1D Menu Helpers
@@ -95,17 +93,17 @@ void HomeActivity::loadRecentCovers(int coverHeight) {
           }
           GUI.fillPopupProgress(renderer, popupRect, 10 + progress * (90 / (totalBooks > 0 ? totalBooks : 1)));
           bool success = epub.generateThumbBmp(coverHeight);
-          
+
           if (!success && !isRecent6Theme()) {
             RECENT_BOOKS.updateBook(book.path, book.title, book.author, "");
             book.coverBmpPath = "";
           }
-          
+
           if (isRecent6Theme()) {
-             row1Rendered = false;
-             row2Rendered = false;
+            row1Rendered = false;
+            row2Rendered = false;
           } else {
-             coverRendered = false;
+            coverRendered = false;
           }
           requestUpdate();
         } else if (FsHelpers::hasXtcExtension(book.path) && !isRecent6Theme()) {
@@ -188,9 +186,15 @@ void HomeActivity::focusMenu() {
 
 void HomeActivity::launchSelectedActivity() {
   switch (menuSelectedTileIndex) {
-    case 0: onFileBrowserOpen(); break;
-    case 1: onAppsOpen(); break;
-    case 2: onSettingsOpen(); break;
+    case 0:
+      onFileBrowserOpen();
+      break;
+    case 1:
+      onAppsOpen();
+      break;
+    case 2:
+      onSettingsOpen();
+      break;
   }
 }
 
@@ -213,17 +217,17 @@ void HomeActivity::onEnter() {
   Activity::onEnter();
 
   const auto& metrics = UITheme::getInstance().getMetrics();
-  
+
   if (isRecent6Theme()) {
-      carouselSelectedIndex = 0;
-      carouselFocused = true;
-      menuSelectedTileIndex = 0;
-      loadRecentBooks(6);
+    carouselSelectedIndex = 0;
+    carouselFocused = true;
+    menuSelectedTileIndex = 0;
+    loadRecentBooks(6);
   } else {
-      selectorIndex = 0;
-      loadRecentBooks(metrics.homeRecentBooksCount);
+    selectorIndex = 0;
+    loadRecentBooks(metrics.homeRecentBooksCount);
   }
-  
+
   requestUpdate();
 }
 
@@ -298,7 +302,7 @@ void HomeActivity::loop() {
       requestUpdate();
       return;
     }
-    
+
   } else {
     // --- ORIGINAL LOGIC ---
     const int menuCount = getMenuItemCount();
@@ -380,8 +384,9 @@ void HomeActivity::render(RenderLock&&) {
                               row1Rendered, row1Stored, tempRestored, [&]() { return true; });
 
       if (!recentBooksRow2.empty()) {
-        GUI.drawRecentBookCover(renderer, Rect(0, startY + bookRowHeight + 10, pageWidth, bookRowHeight), recentBooksRow2,
-                                activeSel2, row2Rendered, row2Stored, tempRestored, [&]() { return true; });
+        GUI.drawRecentBookCover(renderer, Rect(0, startY + bookRowHeight + 10, pageWidth, bookRowHeight),
+                                recentBooksRow2, activeSel2, row2Rendered, row2Stored, tempRestored,
+                                [&]() { return true; });
       }
     }
 
@@ -427,20 +432,18 @@ void HomeActivity::render(RenderLock&&) {
     // Simple, fix menu for original themes
     std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_MENU_RECENT_BOOKS), tr(STR_APPS),
                                           tr(STR_SETTINGS_TITLE)};
-    
+
     // UIIcon::Library for Apps menu icon
     std::vector<UIIcon> menuIcons = {Folder, Recent, Library, Settings};
 
     // bottom 1/3
     const int bottomMargin = 20;
-    const int menuHeight = (pageHeight / 3) - 15; 
+    const int menuHeight = (pageHeight / 3) - 15;
     const int menuY = pageHeight - menuHeight - metrics.buttonHintsHeight - bottomMargin;
 
     GUI.drawButtonMenu(
-        renderer,
-        Rect{0, menuY, pageWidth, menuHeight},
-        static_cast<int>(menuItems.size()), selectorIndex - recentBooks.size(),
-        [&menuItems](int index) { return std::string(menuItems[index]); },
+        renderer, Rect{0, menuY, pageWidth, menuHeight}, static_cast<int>(menuItems.size()),
+        selectorIndex - recentBooks.size(), [&menuItems](int index) { return std::string(menuItems[index]); },
         [&menuIcons](int index) { return menuIcons[index]; });
 
     const auto labels = mappedInput.mapLabels("", tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));

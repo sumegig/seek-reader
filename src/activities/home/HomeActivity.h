@@ -39,17 +39,17 @@ class HomeActivity final : public Activity {
   // --- Methods ---
   bool isRecent6Theme() const;
   int getMenuItemCount() const;
-  
+
   void onSelectBook(const std::string& path);
   void onFileBrowserOpen();
   void onRecentsOpen();
   void onSettingsOpen();
-  void onAppsOpen(); // Every theme uses this from now on Instead of File transfer and OPDS
+  void onAppsOpen();  // Every theme uses this from now on Instead of File transfer and OPDS
 
   bool storeCoverBuffer();
   bool restoreCoverBuffer();
   void freeCoverBuffer();
-  
+
   void loadRecentBooks(int maxBooks);
   void loadRecentCovers(int coverHeight);
 
