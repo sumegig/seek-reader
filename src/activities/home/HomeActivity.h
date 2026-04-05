@@ -12,41 +12,51 @@ struct Rect;
 class HomeActivity final : public Activity {
   ButtonNavigator buttonNavigator;
 
-  // Dual-focus state
-  int carouselSelectedIndex = 0;
-  bool carouselFocused = true;
-  int menuSelectedTileIndex = 0;  // Most már csak 0-2 (3 opció)
-
+  // --- Shared State ---
   bool recentsLoading = false;
   bool recentsLoaded = false;
   bool firstRenderDone = false;
-
   bool coverBufferStored = false;
   uint8_t* coverBuffer = nullptr;
 
-  // Külön változók a két sor renderelésének követéséhez
+  // --- Original 1D Theme State ---
+  int selectorIndex = 0;
+  bool hasOpdsUrl = false;
+  bool coverRendered = false;
+  std::vector<RecentBook> recentBooks;
+
+  // --- New Recent6 (2D) Theme State ---
+  int carouselSelectedIndex = 0;
+  bool carouselFocused = true;
+  int menuSelectedTileIndex = 0;
   bool row1Rendered = false;
   bool row1Stored = false;
   bool row2Rendered = false;
   bool row2Stored = false;
-
-  // A könyveket memóriabiztonsági okokból két sorra bontjuk
+  int totalRecentBooks = 0;
   std::vector<RecentBook> recentBooksRow1;
   std::vector<RecentBook> recentBooksRow2;
-  int totalRecentBooks = 0;
 
+  // --- Methods ---
+  bool isRecent6Theme() const;
+  int getMenuItemCount() const;
+  
   void onSelectBook(const std::string& path);
   void onFileBrowserOpen();
+  void onRecentsOpen();
   void onSettingsOpen();
-  void onAppsOpen();
+  void onFileTransferOpen();
+  void onOpdsBrowserOpen();
+  void onAppsOpen(); // Apps Activity from your version
 
   bool storeCoverBuffer();
   bool restoreCoverBuffer();
   void freeCoverBuffer();
+  
   void loadRecentBooks(int maxBooks);
   void loadRecentCovers(int coverHeight);
 
-  // Navigáció
+  // Navigation (Recent6)
   void focusCarousel();
   void focusMenu();
   void launchSelectedActivity();
