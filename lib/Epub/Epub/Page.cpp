@@ -78,6 +78,12 @@ bool Page::serialize(FsFile& file) const {
       return false;
     }
   }
+  // --- ADDED: Serialize the exact DOM path string ---
+  uint16_t pathLen = syncXPath.length();
+  serialization::writePod(file, pathLen);
+  if (pathLen > 0) {
+    file.write(reinterpret_cast<const uint8_t*>(syncXPath.data()), pathLen);
+  }
 
   return true;
 }
@@ -121,6 +127,13 @@ std::unique_ptr<Page> Page::deserialize(FsFile& file) {
     }
     entry.number[sizeof(entry.number) - 1] = '\0';
     entry.href[sizeof(entry.href) - 1] = '\0';
+  }
+  // --- ADDED: Deserialize the exact DOM path string ---
+  uint16_t pathLen = 0;
+  serialization::readPod(file, pathLen);
+  if (pathLen > 0) {
+    page->syncXPath.resize(pathLen);
+    file.read(reinterpret_cast<uint8_t*>(page->syncXPath.data()), pathLen);
   }
 
   return page;

@@ -70,10 +70,19 @@ class ChapterHtmlSlimParser {
   int tableRowIndex = 0;
   int tableColIndex = 0;
 
+  std::string pendingAnchorId;
+  std::vector<std::pair<std::string, uint16_t>> anchorData;
+
   // Anchor-to-page mapping: tracks which page each HTML id attribute lands on
   int completedPageCount = 0;
-  std::vector<std::pair<std::string, uint16_t>> anchorData;
-  std::string pendingAnchorId;  // deferred until after previous text block is flushed
+  // --- ADDED: Exact DOM Path Tracking for KOReader Sync ---
+  struct TagCount {
+    std::string tag;
+    int count;
+  };
+  std::vector<std::vector<TagCount>> childTracker;
+  std::vector<std::string> pathElements;
+  std::string currentXPath;
 
   // Footnote link tracking
   bool insideFootnoteLink = false;

@@ -410,9 +410,17 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       if (KOREADER_STORE.hasCredentials()) {
         const int currentPage = section ? section->currentPage : 0;
         const int totalPages = section ? section->pageCount : 0;
+
+        // --- ADDED: Read exact DOM path from the SD Card cache ---
+        std::string exactXPath = "";
+        if (section && currentPage >= 0 && currentPage < totalPages) {
+          auto p = section->loadPageFromSectionFile();
+          if (p) exactXPath = p->syncXPath;
+        }
+
         startActivityForResult(
             std::make_unique<KOReaderSyncActivity>(renderer, mappedInput, epub, epub->getPath(), currentSpineIndex,
-                                                   currentPage, totalPages),
+                                                   currentPage, totalPages, exactXPath),
             [this](const ActivityResult& result) {
               if (!result.isCancelled) {
                 const auto& sync = std::get<SyncResult>(result.data);

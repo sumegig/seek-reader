@@ -167,7 +167,12 @@ void KOReaderSyncActivity::performUpload() {
 
   KOReaderProgress progress;
   progress.document = documentHash;
-  progress.progress = koPos.xpath;
+
+  // --- MODIFIED: Combine KOReader's DocFragment chapter prefix with our exact DOM path ---
+  char xpointerBuf[256];
+  snprintf(xpointerBuf, sizeof(xpointerBuf), "/body/DocFragment[%d]/body%s", currentSpineIndex + 1, exactXPath.c_str());
+  progress.progress = xpointerBuf;
+
   progress.percentage = koPos.percentage;
 
   const auto result = KOReaderSyncClient::updateProgress(progress);

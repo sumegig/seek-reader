@@ -156,6 +156,32 @@ void ChapterHtmlSlimParser::startNewTextBlock(const BlockStyle& blockStyle) {
 void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char* name, const XML_Char** atts) {
   auto* self = static_cast<ChapterHtmlSlimParser*>(userData);
 
+  // --- ADDED: Dynamically track DOM hierarchy for exact KOReader XPath ---
+  if (self->childTracker.empty()) {
+    self->childTracker.push_back(std::vector<TagCount>());
+  }
+  int index = 1;
+  auto& currentChildren = self->childTracker.back();
+  bool found = false;
+  for (auto& tc : currentChildren) {
+    if (tc.tag == name) {
+      tc.count++;
+      index = tc.count;
+      found = true;
+      break;
+    }
+  }
+  if (!found) currentChildren.push_back({name, 1});
+
+  self->pathElements.push_back(std::string(name) + "[" + std::to_string(index) + "]");
+  self->childTracker.push_back(std::vector<TagCount>());
+
+  self->currentXPath = "";
+  for (const auto& p : self->pathElements) {
+    self->currentXPath += "/" + p;
+  }
+  // ----------------------------------------------------------------------
+
   // Middle of skip
   if (self->skipUntilDepth < self->depth) {
     self->depth += 1;
@@ -851,6 +877,15 @@ void XMLCALL ChapterHtmlSlimParser::defaultHandlerExpand(void* userData, const X
 void XMLCALL ChapterHtmlSlimParser::endElement(void* userData, const XML_Char* name) {
   auto* self = static_cast<ChapterHtmlSlimParser*>(userData);
 
+  // --- ADDED: Unwind DOM hierarchy ---
+  if (!self->childTracker.empty()) self->childTracker.pop_back();
+  if (!self->pathElements.empty()) self->pathElements.pop_back();
+  self->currentXPath = "";
+  for (const auto& p : self->pathElements) {
+    self->currentXPath += "/" + p;
+  }
+  // -----------------------------------
+
   // Check if any style state will change after we decrement depth
   // If so, we MUST flush the partWordBuffer with the CURRENT style first
   // Note: depth hasn't been decremented yet, so we check against (depth - 1)
@@ -1108,9 +1143,22 @@ void ChapterHtmlSlimParser::makePages() {
   }
 
   if (!currentPage) {
-    currentPage.reset(new Page());
-    currentPageNextY = 0;
+    currentPage = std::make_unique<Page>();
   }
+
+  // --- ADDED: Lock in the exact DOM path for the first text block on this page ---
+  if (currentPage->syncXPath.empty() && !currentXPath.empty()) {
+    std::string path = currentXPath;
+    size_t bodyPos = path.find("/body");
+    // Extract everything after the <body> tag (e.g., "/div[2]/p[5]")
+    if (bodyPos != std::string::npos) {
+      size_t nextSlash = path.find("/", bodyPos + 5);
+      if (nextSlash != std::string::npos) {
+        currentPage->syncXPath = path.substr(nextSlash);
+      }
+    }
+  }
+  // -------------------------------------------------------------------------------
 
   const int lineHeight = renderer.getLineHeight(fontId) * lineCompression;
 
