@@ -1,9 +1,9 @@
 """
-PlatformIO pre-build script: inject git branch into SEEKREADER_VERSION for
+PlatformIO pre-build script: inject git branch into CROSSPOINT_VERSION for
 the default (dev) environment.
 
-Results in a version string like:  1.0.0-dev+feat-koysnc-xpath
-Release environments are unaffected; they set SEEKREADER_VERSION in the ini.
+Results in a version string like:  1.1.0-dev+feat-koysnc-xpath
+Release environments are unaffected; they set CROSSPOINT_VERSION in the ini.
 """
 
 import configparser
@@ -48,10 +48,10 @@ def get_base_version(project_dir):
         return '0.0.0'
     config = configparser.ConfigParser()
     config.read(ini_path)
-    if not config.has_option('seek-reader', 'version'):
-        warn('No [seek-reader] version in platformio.ini; base version will be "1.0.0"')
-        return '1.0.0'
-    return config.get('seek-reader', 'version')
+    if not config.has_option('crosspoint', 'version'):
+        warn('No [crosspoint] version in platformio.ini; base version will be "0.0.0"')
+        return '0.0.0'
+    return config.get('crosspoint', 'version')
 
 
 def inject_version(env):
@@ -65,8 +65,8 @@ def inject_version(env):
     branch = get_git_branch(project_dir)
     version_string = f'{base_version}-dev+{branch}'
 
-    env.Append(CPPDEFINES=[('SEEKREADER_VERSION', f'\\"{version_string}\\"')])
-    print(f'SeekReader build version: {version_string}')
+    env.Append(CPPDEFINES=[('CROSSPOINT_VERSION', f'\\"{version_string}\\"')])
+    print(f'CrossPoint build version: {version_string}')
 
 
 # PlatformIO/SCons entry point — Import and env are SCons builtins injected at runtime.
