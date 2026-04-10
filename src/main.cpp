@@ -28,8 +28,7 @@
 #include "util/ButtonNavigator.h"
 #include "util/ScreenshotUtil.h"
 
-HalDisplay display;
-HalGPIO gpio;
+
 MappedInputManager mappedInputManager(gpio);
 GfxRenderer renderer(display);
 ActivityManager activityManager(renderer, mappedInputManager);
