@@ -64,7 +64,7 @@ class Page {
   std::vector<std::shared_ptr<PageElement>> elements;
   std::vector<FootnoteEntry> footnotes;
   static constexpr uint16_t MAX_FOOTNOTES_PER_PAGE = 16;
-  
+
   // --- ADDED: Store the exact KOReader DOM path for this specific page ---
   std::string syncXPath;
 

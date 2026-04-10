@@ -28,7 +28,6 @@
 #include "util/ButtonNavigator.h"
 #include "util/ScreenshotUtil.h"
 
-
 MappedInputManager mappedInputManager(gpio);
 GfxRenderer renderer(display);
 ActivityManager activityManager(renderer, mappedInputManager);
