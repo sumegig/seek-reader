@@ -190,30 +190,21 @@ void StatsActivity::renderTopPanel(int panelY, int panelH, int screenW) const {
   const int row2Y = row1Y + rowStep;       // Time values
   const int row3Y = row2Y + rowStep;       // Session values
 
-  // Row 1 — Column headers (Bold)
+  // Column 1: Header - All Time Stats
   renderer.drawText(UI_12_FONT_ID, col1X, row1Y, tr(STR_STATS_ALL_TIME), true, EpdFontFamily::BOLD);
-  renderer.drawText(UI_12_FONT_ID, col2X, row1Y, tr(STR_STATS_LAST_7), true, EpdFontFamily::BOLD);
 
-  // Early exit if no reading data exists yet
-  if (global.totalSessionCount == 0) {
-    renderer.drawCenteredText(UI_12_FONT_ID, panelY + panelH / 2, tr(STR_STATS_NO_DATA), true);
-    return;
-  }
+  // Column 2: Header - Global Milestone
+  renderer.drawText(UI_12_FONT_ID, col2X, row1Y, tr(STR_FINISHED_BOOKS), true, EpdFontFamily::BOLD);
 
-  // Row 2 — Total time spent
+  // Value: Total cumulative reading hours
   char bufAllTime[16];
   formatDuration(bufAllTime, sizeof(bufAllTime), global.totalReadingMs);
   renderer.drawText(UI_12_FONT_ID, col1X, row2Y, bufAllTime, true);
 
-  char bufLast7[16];
-  formatDuration(bufLast7, sizeof(bufLast7), StatsManager.getLast7SessionsMs());
-  renderer.drawText(UI_12_FONT_ID, col2X, row2Y, bufLast7, true);
-
-  // Row 3 — Session counts
-  char bufAllSess[24];
-  snprintf(bufAllSess, sizeof(bufAllSess), "%u %s", static_cast<unsigned>(global.totalSessionCount),
-           tr(STR_STATS_SESSIONS));
-  renderer.drawText(UI_12_FONT_ID, col1X, row3Y, bufAllSess, true);
+  // Value: Finished Books count
+  char bufFinished[12];
+  snprintf(bufFinished, sizeof(bufFinished), "%u", static_cast<unsigned>(global.totalBooksFinished));
+  renderer.drawText(UI_12_FONT_ID, col2X, row2Y, bufFinished, true);
 }
 
 // -----------------------------------------------------------------------

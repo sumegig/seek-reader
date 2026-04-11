@@ -50,7 +50,7 @@ void DetailedStatsActivity::renderDetailedGrid() const {
   const int screenW = 480;
   const int midY = 280;
   const int botY = 450;
-  const int botY2 = 490;
+  // const int botY2 = 490; // second horizontal line
   const int gridBottom = 640;
 
   // -- 1ST SECTION: Top Left - Cover --
@@ -103,21 +103,21 @@ void DetailedStatsActivity::renderDetailedGrid() const {
   snprintf(buf, sizeof(buf), "Sessions: %u", book.sessionCount);
   renderer.drawText(UI_12_FONT_ID, textX, textY, buf, true);
 
-  // -- Draw Grid Lines --
+  // -- Draw Horizontal Grid Lines --
   renderer.drawLine(0, midY, screenW, midY, 4, true);
   renderer.drawLine(0, botY, screenW, botY, 4, true);
-  renderer.drawLine(0, botY2, screenW, botY2, 4, true);  // Second line for separating
-  renderer.drawLine(0, gridBottom, screenW, gridBottom, 4, true);
+  // renderer.drawLine(0, botY2, screenW, botY2, 4, true);  // Second line for separating
+  renderer.drawLine(0, gridBottom - 20, screenW, gridBottom - 20, 4, true);
   // Vertical divider
   renderer.drawLine(screenW / 2, midY + 35, screenW / 2, botY, 3, true);
-  renderer.drawLine(screenW / 2, botY2 + 35, screenW / 2, gridBottom, 3, true);
+  renderer.drawLine(screenW / 2, botY + 35, screenW / 2, gridBottom - 20, 3, true);
 
   // -- Section Headers (Visual Separation) --
   // "This Book" header placed in center just below the first horizontal line
   renderer.drawText(UI_10_FONT_ID, 197, midY + 8, "This Book", true, EpdFontFamily::BOLD);
 
   // "All Time" header placed in center just below the second horizontal line
-  renderer.drawText(UI_10_FONT_ID, 202, botY2 + 8, "All Time", true, EpdFontFamily::BOLD);
+  renderer.drawText(UI_10_FONT_ID, 202, botY + 8, " All Time", true, EpdFontFamily::BOLD);
 
   // -- Floating Point Calculations for Precision --
   const float totalMins = static_cast<float>(book.totalReadingMs) / 60000.0f;
@@ -148,14 +148,24 @@ void DetailedStatsActivity::renderDetailedGrid() const {
   renderer.drawText(UI_12_FONT_ID, 340, botY - 100, buf, true, EpdFontFamily::BOLD);
   renderer.drawText(UI_10_FONT_ID, 270, botY - 60, "   Avg pages/min", true);
 
-  // Row 2: Finished | Total Hours
-  snprintf(buf, sizeof(buf), " %u", global.totalBooksFinished);
-  renderer.drawText(UI_12_FONT_ID, 100, gridBottom - 100, buf, true, EpdFontFamily::BOLD);
-  renderer.drawText(UI_10_FONT_ID, 40, gridBottom - 60, " Finished Books", true);
+  // -- Section: Book Milestones (Bottom Grid) --
+  const int botYVal = 520;    // Adjusted Y position for stats values
+  const int botYLabel = 560;  // Adjusted Y position for labels
 
-  snprintf(buf, sizeof(buf), " %.1f", globalHours);  // 1 decimal point
-  renderer.drawText(UI_12_FONT_ID, 340, gridBottom - 100, buf, true, EpdFontFamily::BOLD);
-  renderer.drawText(UI_10_FONT_ID, 260, gridBottom - 60, " Total reading hours", true);
+  // 1. Column: Last Session duration
+  char lastSessBuf[32];
+  uint32_t lsMins = book.lastSessionMs / 60000;
+  snprintf(lastSessBuf, sizeof(lastSessBuf), "%u min", static_cast<unsigned>(lsMins));
+  renderer.drawText(UI_12_FONT_ID, 90, botYVal, lastSessBuf, true, EpdFontFamily::BOLD);
+  renderer.drawText(UI_10_FONT_ID, 20, botYLabel, "Last session this book", true);
+
+  // 2. Column: Total Reading Time for this specific book
+  char globalTotalBuf[32];
+  uint32_t bh = global.totalReadingMs / 3600000;
+  uint32_t bm = (global.totalReadingMs % 3600000) / 60000;
+  snprintf(globalTotalBuf, sizeof(globalTotalBuf), "%uh %02um", static_cast<unsigned>(bh), static_cast<unsigned>(bm));
+  renderer.drawText(UI_12_FONT_ID, 310, botYVal, globalTotalBuf, true, EpdFontFamily::BOLD);
+  renderer.drawText(UI_10_FONT_ID, 290, botYLabel, "Total time read", true);
 }
 
 void DetailedStatsActivity::drawCoverPlaceholder(int x, int y, int w, int h) const {

@@ -9,9 +9,9 @@
 #include "Logging.h"
 
 static constexpr uint8_t STATS_MAX_BOOK_ENTRIES = 9;
-static constexpr uint32_t STATS_MIN_SESSION_MS = 5UL * 60UL * 1000UL;
+static constexpr uint32_t STATS_MIN_SESSION_MS = 4UL * 60UL * 1000UL;
 static constexpr uint8_t STATS_SESSION_RING_SIZE = 7;
-static constexpr uint8_t STATS_FILE_VERSION = 5;  // UPDATE: bumped from 4 to 5
+static constexpr uint8_t STATS_FILE_VERSION = 6;  // UPDATE: bumped from 5 to 6
 static constexpr const char* STATS_FILE_PATH = "/.crosspoint/stats.bin";
 
 // -----------------------------------------------------------------------
@@ -20,16 +20,18 @@ static constexpr const char* STATS_FILE_PATH = "/.crosspoint/stats.bin";
 struct BookStatEntry {
   char cacheKey[64];       // epub->getCachePath()
   char title[64];          // epub->getTitle()
-  char author[64];         // NEW: epub->getAuthor()
+  char author[64];         // epub->getAuthor()
   char bookPath[128];      // epub->getPath()
   char thumbBmpPath[128];  // epub->getThumbBmpPath()
   uint32_t totalReadingMs;
   uint32_t sessionCount;
-  uint32_t totalPagesRead;  // NEW: Total pages read in this specific book
+  uint32_t totalPagesRead;
+  uint32_t lastSessionMs;  // NEW: Duration of the most recent reading session
   uint8_t progressPercent;
-  uint8_t _pad[3];  // RISC-V 4-byte padding
+  uint8_t _pad[3];  // Padding for 4-byte RISC-V alignment
 };
-static_assert(sizeof(BookStatEntry) == 464, "BookStatEntry layout changed — bump STATS_FILE_VERSION");
+// Size: 464 (v5) + 4 (lastSessionMs) = 468 bytes
+static_assert(sizeof(BookStatEntry) == 468, "BookStatEntry layout changed — bump STATS_FILE_VERSION");
 
 // -----------------------------------------------------------------------
 // Global stats record
