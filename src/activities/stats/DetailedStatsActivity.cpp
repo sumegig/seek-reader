@@ -135,7 +135,7 @@ void DetailedStatsActivity::renderDetailedGrid() const {
   }
 
   // Global Hours (1 decimal place)
-  const float globalHours = static_cast<float>(global.totalReadingMs) / 3600000.0f;
+  // const float globalHours = static_cast<float>(global.totalReadingMs) / 3600000.0f;
 
   // -- Render Bottom Grid with Precision --
 

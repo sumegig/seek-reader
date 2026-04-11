@@ -188,7 +188,7 @@ void StatsActivity::renderTopPanel(int panelY, int panelH, int screenW) const {
   const int rowStep = panelH / 4;
   const int row1Y = panelY + rowStep / 2;  // Column headers
   const int row2Y = row1Y + rowStep;       // Time values
-  const int row3Y = row2Y + rowStep;       // Session values
+  // const int row3Y = row2Y + rowStep;       // Session values
 
   // Column 1: Header - All Time Stats
   renderer.drawText(UI_12_FONT_ID, col1X, row1Y, tr(STR_STATS_ALL_TIME), true, EpdFontFamily::BOLD);
