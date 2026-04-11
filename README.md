@@ -1,3 +1,4 @@
+
 # SEEK Reader
 
 ## Motivation
@@ -16,12 +17,13 @@ My primary goal with SEEK is to build a highly customizable, personalized readin
 * Robust EPUB 2 and EPUB 3 parsing and rendering.
 * Aggressive SD-card caching mechanism (crucial for the ESP32-C3's 380KB RAM limit).
 * WiFi OTA (Over-The-Air) updates and Book upload.
-* KOReader Sync integration for cross-device reading progress.
 * Multi-language support.
 
 **SEEK Customizations & Features (My Additions):**
-* **Detailed Reading Statistics:** A dedicated, E-ink optimized statistics screen tracking all-time reading hours, session counts, and per-book progress.
-* **Custom UI & Layouts:** Personalized home screen layouts, cascading cover resolution fallbacks, and tailored navigation.
+* **Detailed Reading Statistics:** A dedicated, E-ink optimized statistics screen tracking all-time reading hours, session counts, per-book progress, and precision metrics (pages/min) using floating-point math.
+* **Custom UI & Layouts:** Multiple dynamic UI themes, including a memory-safe **3x2 Recent6 Grid layout**, an asymmetrical bottom menu, and cascading cover resolution fallbacks to prevent E-ink ghosting.
+* **Apps Submenu:** A centralized, easily navigable hub for utility applications (File Transfer, Stats, OPDS) keeping the Home screen clean.
+* **Overhauled KOReader Sync:** Custom asymmetrical, heuristic paragraph-level synchronization that fixes chapter drift and prevents remote device XML parser crashes.
 * **More to come:** I am actively shaping the firmware, so expect more personalized features, custom sleep screens, and UI overhauls.
 
 ## Features & Usage
@@ -30,11 +32,12 @@ My primary goal with SEEK is to build a highly customizable, personalized readin
 - [x] Image support within EPUB
 - [x] Saved reading position
 - [x] File explorer with nested folder support
-- [x] Detailed Reading Statistics & Time Tracking
-- [x] Custom sleep screens (Cover sleep screen)
+- [x] Detailed Reading Statistics (Session tracking, Avg pages/min, Global completion)
+- [x] Custom sleep screens (Cover sleep screen with cascading fallbacks)
 - [x] Wifi book upload & OTA updates
-- [x] KOReader Sync integration
+- [x] Heuristic KOReader Sync integration (Paragraph-level accuracy)
 - [x] Configurable font, layout, and display options
+- [x] Multiple Home UI Themes (Classic, Lyra, Recent6 Grid)
 - [x] Screen rotation (4 orientations)
 
 See the [USER_GUIDE.md](./USER_GUIDE.md) for basic operating instructions.
@@ -55,17 +58,19 @@ Since SEEK is an actively developed custom firmware, the primary way to install 
 Clone the repository and its submodules:
 
 ```sh
-git clone --recursive https://github.com/sumegig/seek-reader
+git clone --recursive [https://github.com/sumegig/seek-reader](https://github.com/sumegig/seek-reader)
 
 # Or, if you've already cloned without --recursive:
 git submodule update --init --recursive
+````
 
-```
 ### Flashing your device
 
 Connect your Xteink X4 to your computer via USB-C and run the following command using PlatformIO:
 
-```Bash
+Bash
+
+```bash
 pio run --target upload
 ```
 
@@ -75,13 +80,15 @@ _(Note: If you ever want to revert back to the official firmware, you can use th
 
 If you are modifying the code, it’s recommended to capture detailed logs from the serial port. Install the required Python packages:
 
-```Bash
+
+```bash
 python3 -m pip install pyserial colorama matplotlib
 ```
 
 Then run the monitoring script:
 
-```Bash
+
+```bash
 # For Linux/Windows (Git Bash)
 python3 scripts/debugging_monitor.py
 
@@ -99,7 +106,9 @@ The first time chapters of a book are loaded, they are cached to the SD card. Su
 
 The structure is as follows:
 
-```Plaintext
+Plaintext
+
+```
 .crosspoint/
 ├── epub_12471232/       # Each EPUB is cached to a subdirectory named `epub_<hash>`
 │   ├── progress.bin     # Stores reading progress (chapter, page, etc.)
@@ -112,6 +121,7 @@ The structure is as follows:
 └── system/
     └── BasicCover.bmp   # Fallback placeholder for missing covers
 ```
+
 Deleting the `.crosspoint` directory will clear the entire cache and force the device to re-parse books upon opening them.
 
 For more details on the internal file structures, see the [file formats document](https://www.google.com/search?q=./docs/file-formats.md).
