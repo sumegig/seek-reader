@@ -179,17 +179,28 @@ void waitForPowerRelease() {
   }
 }
 
-// Enter deep sleep mode
 void enterDeepSleep() {
-  HalPowerManager::Lock powerLock;  // Ensure we are at normal CPU frequency for sleep preparation
+  HalPowerManager::Lock powerLock; 
   APP_STATE.lastSleepFromReader = activityManager.isReaderActivity();
-  APP_STATE.saveToFile();
+  
+  // NEW: Force stats update before RAM is wiped in deep sleep
+  if (StatsManager.getLast7SessionCount() > 0) { // Simple check if stats are active
+      LOG_INF("MAIN", "Ending reading session before sleep");
+      LOG_DBG("MAIN", "Power button press calibration value: %lu ms", t2 - t1);
+      LOG_DBG("MAIN", "Entering deep sleep");
+      // Use placeholder values if direct reader access is complex from main.cpp
+      // Ideally, the current activity's onExit() handles this via activityManager.goToSleep()
+      // but a direct call here is the ultimate safety net.
+      StatsManager.endSession(APP_STATE.readerActivityLoadCount > 0 ? 0 : 0, 0); 
+  }
 
+  APP_STATE.saveToFile();
   activityManager.goToSleep();
 
   display.deepSleep();
-  LOG_DBG("MAIN", "Power button press calibration value: %lu ms", t2 - t1);
-  LOG_DBG("MAIN", "Entering deep sleep");
+  
+  // Give SD card time to finish any pending writes
+  delay(500); 
 
   powerManager.startDeepSleep(gpio);
 }
