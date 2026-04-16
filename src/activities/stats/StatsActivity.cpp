@@ -266,6 +266,8 @@ void StatsActivity::renderBookPanel(int panelY, int panelH, int screenW) const {
 // -----------------------------------------------------------------------
 // Single Book Row Rendering
 // -----------------------------------------------------------------------
+// src/activities/stats/StatsActivity.cpp
+
 void StatsActivity::renderBookRow(int rowX, int rowY, int rowW, int rowH, const BookStatEntry& book,
                                   bool selected) const {
   const auto& metrics = UITheme::getInstance().getMetrics();
@@ -291,44 +293,47 @@ void StatsActivity::renderBookRow(int rowX, int rowY, int rowW, int rowH, const 
     drawCoverPlaceholder(coverX, coverY, coverW, coverH);
   }
 
-  // Text area positioning (starts immediately after the cover)
   const int textX = coverX + coverW + pad + 10;
   const int textW = rowX + rowW - textX - pad - 10;
+  const int line1Y = coverY + 10;
 
-  // Distribute 4 text lines evenly across the usable row height
-  const int line1Y = coverY + 10;  // Title
+  // --- FIX: Proper Title Truncation Logic ---
+  char truncatedTitle[64];
+  size_t titleLen = strlen(book.title);
+  // Using a strict 16 character limit to prevent overlap with the percentage text
+  static constexpr size_t MAX_LIST_TITLE_LEN = 26;
+
+  if (titleLen > MAX_LIST_TITLE_LEN) {
+    strncpy(truncatedTitle, book.title, MAX_LIST_TITLE_LEN);
+    truncatedTitle[MAX_LIST_TITLE_LEN] = '\0';
+    strcat(truncatedTitle, "...");
+  } else {
+    strncpy(truncatedTitle, book.title, sizeof(truncatedTitle) - 1);
+  }
+
+  // Line 1 — Book Title (Bold, UI_12) - Using the truncated buffer!
+  renderer.drawText(UI_12_FONT_ID, textX, line1Y, truncatedTitle, true, EpdFontFamily::BOLD);
+
+  // Distribute text lines evenly across the usable row height
   const int line2Y = coverY + 40;  // Progress bar
   const int line3Y = coverY + 70;  // Time spent
   const int line4Y = coverY + 95;  // Sessions
 
-  // Line 1 — Book Title (Bold, UI_12)
-  renderer.drawText(UI_12_FONT_ID, textX, line1Y, book.title, true, EpdFontFamily::BOLD);
-
   // Line 2 — Custom Progress Bar + Percentage Text (UI_10)
-  // Avoids BaseTheme::drawProgressBar which renders text below the bar
   const int barH = 8;
   const int barY = line2Y + 4;
   const int pctLabelW = 40;                // Reserved width for "100%"
   const int barW = textW - pctLabelW - 5;  // Prevents overlap with text
   const int pctX = textX + barW + 10;
-  const int maxX = renderer.getScreenWidth() - 2;
 
-  // Only draw the progress bar if there's enough horizontal space
-  if (barW > 10 && pctX < maxX) {
-    // Outline
+  if (barW > 10) {
     renderer.drawRect(textX, barY, barW, barH, 1, true);
-
-    // Fill based on percentage
     if (book.progressPercent > 0) {
       const int fillW = (barW * book.progressPercent) / 100;
-      if (fillW > 0) {
-        renderer.fillRect(textX, barY, fillW, barH, true);
-      }
+      renderer.fillRect(textX, barY, fillW, barH, true);
     }
-
-    // Percentage text
     char bufPct[6];
-    formatPercent(bufPct, sizeof(bufPct), book.progressPercent);
+    snprintf(bufPct, sizeof(bufPct), "%u%%", static_cast<unsigned>(book.progressPercent));
     renderer.drawText(UI_10_FONT_ID, pctX, line2Y, bufPct, true);
   }
 
@@ -340,7 +345,7 @@ void StatsActivity::renderBookRow(int rowX, int rowY, int rowW, int rowH, const 
   renderer.drawText(UI_10_FONT_ID, textX, line3Y, bufLine3, true);
 
   // Line 4 — Session Count (UI_10)
-  char bufLine4[24];
+  char bufLine4[32];
   snprintf(bufLine4, sizeof(bufLine4), "%s: %u", tr(STR_STATS_SESSIONS_COUNT),
            static_cast<unsigned>(book.sessionCount));
   renderer.drawText(UI_10_FONT_ID, textX, line4Y, bufLine4, true);

@@ -50,18 +50,16 @@ void DetailedStatsActivity::renderDetailedGrid() const {
   const int screenW = 480;
   const int midY = 280;
   const int botY = 450;
-  // const int botY2 = 490; // second horizontal line
   const int gridBottom = 640;
 
   // -- 1ST SECTION: Top Left - Cover --
   // Adjusted for 480px width: Cover takes roughly 40% of width
   const int coverPad = 15;
   const int coverW = 180;
-  const int coverH = 240;  // 3:4 aspect ratio
+  const int coverH = 240;
   const int coverX = coverPad;
   const int coverY = coverPad;
 
-  bool coverFound = false;
   // Using 226px height thumb as it fits perfectly here
   std::string thumbPath = UITheme::getCoverThumbPath(std::string(book.thumbBmpPath), 226);
   if (Storage.exists(thumbPath.c_str())) {
@@ -70,13 +68,10 @@ void DetailedStatsActivity::renderDetailedGrid() const {
       Bitmap bmp(f, false);
       if (bmp.parseHeaders() == BmpReaderError::Ok) {
         renderer.drawBitmap(bmp, coverX, coverY, coverW, coverH);
-        coverFound = true;
       }
       f.close();
     }
-  }
-
-  if (!coverFound) {
+  } else {
     drawCoverPlaceholder(coverX, coverY, coverW, coverH);
   }
 
@@ -84,10 +79,65 @@ void DetailedStatsActivity::renderDetailedGrid() const {
   const int textX = coverX + coverW + 15;
   int textY = coverY + 10;
 
-  // Title - BOLD (Using UI_12_FONT_ID as UI_14/16 are not loaded)
-  renderer.drawText(UI_12_FONT_ID, textX, textY, book.title, true, EpdFontFamily::BOLD);
-  textY += 40;
+  // --- Optimized 3-Line title logic for Detailed View ---
+  // Increased BREAK_AT to 19 to utilize the full 480px width (approx 255px for text)
+  static constexpr size_t BREAK_AT = 19;
+  size_t titleLen = strlen(book.title);
 
+  if (titleLen > BREAK_AT) {
+    // Line 1: Calculate first split
+    char line1[32];
+    size_t split1 = BREAK_AT;
+    for (size_t i = BREAK_AT; i > 5; --i) {
+      if (book.title[i] == ' ' || book.title[i] == ':' || book.title[i] == '|') {
+        split1 = i + 1;
+        break;
+      }
+    }
+    snprintf(line1, sizeof(line1), "%.*s", (int)split1, book.title);
+    renderer.drawText(UI_12_FONT_ID, textX, textY, line1, true, EpdFontFamily::BOLD);
+
+    const char* remaining1 = book.title + split1;
+    size_t rem1Len = strlen(remaining1);
+
+    if (rem1Len > BREAK_AT) {
+      // Line 2: Calculate second split from what remains
+      char line2[32];
+      size_t split2 = BREAK_AT;
+      for (size_t i = BREAK_AT; i > 5; --i) {
+        if (remaining1[i] == ' ' || remaining1[i] == ':' || remaining1[i] == '|') {
+          split2 = i + 1;
+          break;
+        }
+      }
+      snprintf(line2, sizeof(line2), "%.*s", (int)split2, remaining1);
+      renderer.drawText(UI_12_FONT_ID, textX, textY + 32, line2, true, EpdFontFamily::BOLD);
+
+      // Line 3: Final segment (with safe truncation for extremely long titles)
+      const char* remaining2 = remaining1 + split2;
+      if (strlen(remaining2) > 22) {
+        char line3Trunc[32];
+        strncpy(line3Trunc, remaining2, 19);
+        line3Trunc[19] = '\0';
+        strcat(line3Trunc, "...");
+        renderer.drawText(UI_12_FONT_ID, textX, textY + 64, line3Trunc, true, EpdFontFamily::BOLD);
+      } else {
+        renderer.drawText(UI_12_FONT_ID, textX, textY + 64, remaining2, true, EpdFontFamily::BOLD);
+      }
+      // Metadata shifted down to accommodate 3 title lines
+      textY += 105;
+    } else {
+      // Only 2 lines needed (second line is shorter than BREAK_AT)
+      renderer.drawText(UI_12_FONT_ID, textX, textY + 32, remaining1, true, EpdFontFamily::BOLD);
+      textY += 85;
+    }
+  } else {
+    // Simple 1-line title
+    renderer.drawText(UI_12_FONT_ID, textX, textY, book.title, true, EpdFontFamily::BOLD);
+    textY += 70;
+  }
+
+  // --- Metadata Rendering (Author, Time, Sessions) ---
   // Author
   renderer.drawText(UI_12_FONT_ID, textX, textY, book.author, true, EpdFontFamily::REGULAR);
   textY += 60;
@@ -97,7 +147,7 @@ void DetailedStatsActivity::renderDetailedGrid() const {
   const uint32_t mins = (book.totalReadingMs % 3600000) / 60000;
   snprintf(buf, sizeof(buf), "%uh %um", hours, mins);
   renderer.drawText(UI_12_FONT_ID, textX, textY, buf, true);
-  textY += 35;
+  textY += 30;
 
   // Sessions
   snprintf(buf, sizeof(buf), "Sessions: %u", book.sessionCount);
@@ -106,8 +156,8 @@ void DetailedStatsActivity::renderDetailedGrid() const {
   // -- Draw Horizontal Grid Lines --
   renderer.drawLine(0, midY, screenW, midY, 4, true);
   renderer.drawLine(0, botY, screenW, botY, 4, true);
-  // renderer.drawLine(0, botY2, screenW, botY2, 4, true);  // Second line for separating
   renderer.drawLine(0, gridBottom - 20, screenW, gridBottom - 20, 4, true);
+
   // Vertical divider
   renderer.drawLine(screenW / 2, midY + 35, screenW / 2, botY, 3, true);
   renderer.drawLine(screenW / 2, botY + 35, screenW / 2, gridBottom - 20, 3, true);
@@ -120,42 +170,30 @@ void DetailedStatsActivity::renderDetailedGrid() const {
   renderer.drawText(UI_10_FONT_ID, 202, botY + 8, " All Time", true, EpdFontFamily::BOLD);
 
   // -- Floating Point Calculations for Precision --
-  const float totalMins = static_cast<float>(book.totalReadingMs) / 60000.0f;
-
-  // Avg Min / Session (1 decimal place)
-  float avgMinSess = 0.0f;
-  if (book.sessionCount > 0) {
-    avgMinSess = totalMins / static_cast<float>(book.sessionCount);
-  }
+  const float totalMinsFloat = static_cast<float>(book.totalReadingMs) / 60000.0f;
+  float avgMinSess = (book.sessionCount > 0) ? (totalMinsFloat / static_cast<float>(book.sessionCount)) : 0.0f;
 
   // Avg Pages / Min (2 decimal places)
-  float avgPagesMin = 0.0f;
-  if (totalMins > 0.05f) {  // Avoid division by near-zero
-    avgPagesMin = static_cast<float>(book.totalPagesRead) / totalMins;
-  }
-
-  // Global Hours (1 decimal place)
-  // const float globalHours = static_cast<float>(global.totalReadingMs) / 3600000.0f;
+  float avgPagesMin = (totalMinsFloat > 0.05f) ? (static_cast<float>(book.totalPagesRead) / totalMinsFloat) : 0.0f;
 
   // -- Render Bottom Grid with Precision --
 
   // Row 1: Avg Min/Sess | Avg Pages/Min
-  snprintf(buf, sizeof(buf), "%.1f", avgMinSess);  // 1 decimal point
+  snprintf(buf, sizeof(buf), "%.1f", avgMinSess);
   renderer.drawText(UI_12_FONT_ID, 100, botY - 100, buf, true, EpdFontFamily::BOLD);
   renderer.drawText(UI_10_FONT_ID, 30, botY - 60, "  Avg min/session", true);
 
-  snprintf(buf, sizeof(buf), "%.2f", avgPagesMin);  // 2 decimal points
+  snprintf(buf, sizeof(buf), "%.2f", avgPagesMin);
   renderer.drawText(UI_12_FONT_ID, 340, botY - 100, buf, true, EpdFontFamily::BOLD);
   renderer.drawText(UI_10_FONT_ID, 270, botY - 60, "   Avg pages/min", true);
 
   // -- Section: Book Milestones (Bottom Grid) --
-  const int botYVal = 520;    // Adjusted Y position for stats values
-  const int botYLabel = 560;  // Adjusted Y position for labels
+  const int botYVal = 520;
+  const int botYLabel = 560;
 
   // 1. Column: Last Session duration
   char lastSessBuf[32];
-  uint32_t lsMins = book.lastSessionMs / 60000;
-  snprintf(lastSessBuf, sizeof(lastSessBuf), "%u min", static_cast<unsigned>(lsMins));
+  snprintf(lastSessBuf, sizeof(lastSessBuf), "%u min", static_cast<unsigned>(book.lastSessionMs / 60000));
   renderer.drawText(UI_12_FONT_ID, 90, botYVal, lastSessBuf, true, EpdFontFamily::BOLD);
   renderer.drawText(UI_10_FONT_ID, 20, botYLabel, "Last session this book", true);
 
@@ -163,7 +201,7 @@ void DetailedStatsActivity::renderDetailedGrid() const {
   char globalTotalBuf[32];
   uint32_t bh = global.totalReadingMs / 3600000;
   uint32_t bm = (global.totalReadingMs % 3600000) / 60000;
-  snprintf(globalTotalBuf, sizeof(globalTotalBuf), "%uh %02um", static_cast<unsigned>(bh), static_cast<unsigned>(bm));
+  snprintf(globalTotalBuf, sizeof(globalTotalBuf), "%uh %02um", bh, bm);
   renderer.drawText(UI_12_FONT_ID, 310, botYVal, globalTotalBuf, true, EpdFontFamily::BOLD);
   renderer.drawText(UI_10_FONT_ID, 290, botYLabel, "Total time read", true);
 }
