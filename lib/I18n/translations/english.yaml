@@ -302,3 +302,8 @@ STR_STATS_MORE: "More..."
 STR_APPS: "Apps"
 STR_THEME_RECENT6: "Recent6"
 STR_FINISHED_BOOKS: "Finished Books"
+STR_STATS_VIEW_FINISHED: "Finished"
+STR_STATS_VIEW_READING: "Reading"
+
+
+# python scripts/gen_i18n.py lib/I18n/translations lib/I18n/

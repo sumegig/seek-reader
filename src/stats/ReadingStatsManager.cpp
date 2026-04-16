@@ -16,11 +16,11 @@ bool ReadingStatsManager::load() {
 
   uint8_t fileVersion;
   f.read(&fileVersion, 1);
-  f.seek(0); 
+  f.seek(0);
 
   if (fileVersion < STATS_FILE_VERSION) {
     LOG_INF("STATS", "Migrating stats %d -> %d", fileVersion, STATS_FILE_VERSION);
-    
+
     // GlobalStats (v4=40, v5=44, v6=44). v5 and v6 match in size.
     size_t globalSize = (fileVersion == 4) ? 40 : 44;
     f.read(&global, globalSize);
@@ -31,20 +31,20 @@ bool ReadingStatsManager::load() {
       if (fileVersion == 5) {
         // v5 entry was 464 bytes. lastSessionMs (v6) is a new 4-byte field.
         // Read everything up to totalPagesRead (460 bytes)
-        f.read(&books[i], 460); 
+        f.read(&books[i], 460);
         // lastSessionMs is new in v6 at this offset, so we skip reading it from v5 file
         // and read the remaining v5 data (progressPercent + pads) into the new offset
-        f.read(&books[i].progressPercent, 4); 
+        f.read(&books[i].progressPercent, 4);
       } else {
         // v4 migration (396 bytes)
         f.read(&books[i], 396);
       }
     }
     f.close();
-    save(); // Force clean save in V6 format
+    save();  // Force clean save in V6 format
     return true;
   }
-  
+
   // Standard V6 load logic continues...
   f.read(&global, sizeof(GlobalStats));
   for (uint8_t i = 0; i < global.bookCount; ++i) {
@@ -125,7 +125,7 @@ void ReadingStatsManager::beginSession(const char* cacheKey, const char* title, 
       // If full, reuse the last (least progress) slot
       idx = STATS_MAX_BOOK_ENTRIES - 1;
     }
-    
+
     memset(&books[idx], 0, sizeof(BookStatEntry));
     strncpy(books[idx].cacheKey, cacheKey, sizeof(books[idx].cacheKey) - 1);
     strncpy(books[idx].title, title, sizeof(books[idx].title) - 1);
@@ -177,9 +177,9 @@ void ReadingStatsManager::endSession(uint8_t progressPercent, uint32_t sessionPa
     }
   }
 
-// Always re-sort by progress before saving to keep the list consistent
+  // Always re-sort by progress before saving to keep the list consistent
   if (longEnough || (sessionBookIndex < global.bookCount)) {
-    sortByProgress(); // This ensures highest percentage is always at books[0]
+    sortByProgress();  // This ensures highest percentage is always at books[0]
     save();
   }
 }
