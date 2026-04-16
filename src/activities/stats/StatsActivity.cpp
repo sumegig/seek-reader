@@ -47,11 +47,13 @@ void StatsActivity::formatPercent(char* buf, size_t bufLen, uint8_t percent) {
  * @brief Returns the number of books that have not yet reached 100% completion.
  * Completed books are filtered out from the active statistics list.
  */
-uint8_t StatsActivity::getVisibleBookCount() {
+// Updated to filter based on the current view mode
+uint8_t StatsActivity::getVisibleBookCount() const {
   uint8_t count = 0;
   for (uint8_t i = 0; i < StatsManager.getBookCount(); ++i) {
-    // Filter logic aligns with HomeActivity to handle floating point truncation
-    if (StatsManager.getBook(i).progressPercent < 95) {
+    const bool isDone = (StatsManager.getBook(i).progressPercent >= 95);
+    // Csak akkor számoljuk, ha megegyezik az aktuális nézettel
+    if (isDone == showingFinished) {
       count++;
     }
   }
@@ -102,20 +104,28 @@ void StatsActivity::loop() {
     }
   }
 
-  // --- MEMORY MAPPING LOGIC ---
-  // We need to map the visual UI index (selectedBookIndex) to the actual index
-  // in the StatsManager memory, explicitly skipping finished books (>= 95%).
+  // NEW: Toggle between Reading and Finished lists
+  if (mappedInput.wasReleased(MappedInputManager::Button::Right)) {
+    showingFinished = !showingFinished;
+    selectedBookIndex = 0;  // Reset scroll position on toggle
+    requestUpdate();
+    return;
+  }
+
+  // --- UPDATED MEMORY MAPPING LOGIC ---
+  // Must account for the 'showingFinished' flag when finding the book index
   uint8_t actualMemoryIndex = 0;
-  int currentUnfinished = 0;
+  int currentMatch = 0;
 
   for (uint8_t j = 0; j < StatsManager.getBookCount(); ++j) {
-    if (StatsManager.getBook(j).progressPercent >= 95) continue;
+    const bool isDone = (StatsManager.getBook(j).progressPercent >= 95);
+    if (isDone != showingFinished) continue;
 
-    if (currentUnfinished == selectedBookIndex) {
+    if (currentMatch == selectedBookIndex) {
       actualMemoryIndex = j;
       break;
     }
-    currentUnfinished++;
+    currentMatch++;
   }
 
   // Open detailed stats (More...)
@@ -163,8 +173,13 @@ void StatsActivity::render(RenderLock&& lock) {
   renderTopPanel(contentTop, topH, screenW);
   renderBookPanel(contentTop + topH, bottomH, screenW);
 
-  // Draw navigation button hints (Back, Open, More..., [empty])
-  GUI.drawButtonHints(renderer, tr(STR_BACK), tr(STR_OPEN), tr(STR_STATS_MORE), "");
+  // Update button hints based on mode
+  // Select the appropriate translation key based on the toggle state
+  StrId toggleId = showingFinished ? StrId::STR_STATS_VIEW_READING : StrId::STR_STATS_VIEW_FINISHED;
+  const char* toggleHint = I18n::getInstance().get(toggleId);
+
+  // Draw navigation button hints
+  GUI.drawButtonHints(renderer, tr(STR_BACK), tr(STR_OPEN), tr(STR_STATS_MORE), toggleHint);
 
   renderer.displayBuffer();
 }
@@ -218,35 +233,30 @@ void StatsActivity::renderBookPanel(int panelY, int panelH, int screenW) const {
     return;
   }
 
-  // Fixed layout showing 3 books per page for optimal cover size and readability
   static constexpr int VISIBLE_ROWS = 3;
   const int rowH = panelH / VISIBLE_ROWS;
-
-  // Calculate scroll offset for page-based navigation (keeps selected book in view)
   const int scrollOffset = (selectedBookIndex / VISIBLE_ROWS) * VISIBLE_ROWS;
   const int visibleCount = std::min(static_cast<int>(count) - scrollOffset, VISIBLE_ROWS);
 
-  // Render each visible row
   for (int i = 0; i < visibleCount; ++i) {
     const int visibleIdx = scrollOffset + i;
     const int rowY = panelY + i * rowH;
 
-    // --- MEMORY MAPPING LOGIC ---
-    // Safely retrieve the actual book from memory, jumping over finished books
     const BookStatEntry* targetBook = nullptr;
-    int currentUnfinished = 0;
+    int currentMatch = 0;
 
     for (uint8_t j = 0; j < StatsManager.getBookCount(); ++j) {
-      if (StatsManager.getBook(j).progressPercent >= 95) continue;
+      const bool isDone = (StatsManager.getBook(j).progressPercent >= 95);
 
-      if (currentUnfinished == visibleIdx) {
+      if (isDone != showingFinished) continue;
+
+      if (currentMatch == visibleIdx) {
         targetBook = &StatsManager.getBook(j);
         break;
       }
-      currentUnfinished++;
+      currentMatch++;
     }
 
-    // Render the row using the mapped book
     if (targetBook) {
       renderBookRow(0, rowY, screenW, rowH, *targetBook, visibleIdx == selectedBookIndex);
     }

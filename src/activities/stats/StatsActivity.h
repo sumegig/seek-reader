@@ -19,10 +19,11 @@ class StatsActivity final : public Activity {
   void renderBookRow(int rowX, int rowY, int rowW, int rowH, const BookStatEntry& book, bool selected) const;
   void drawCoverPlaceholder(int x, int y, int w, int h) const;
   bool loadAndDrawCover(int x, int y, int w, int h, const BookStatEntry& book) const;
+  bool showingFinished = false;  // NEW: Toggle between Reading and Finished views
 
   static void formatDuration(char* buf, size_t bufLen, uint32_t ms);
   static void formatPercent(char* buf, size_t bufLen, uint8_t percent);
-  static uint8_t getVisibleBookCount();
+  uint8_t getVisibleBookCount() const;
 
   int selectedBookIndex = 0;
 };
