@@ -12,8 +12,8 @@
 
 namespace {
 // Device identifier for CrossPoint reader
-constexpr char DEVICE_NAME[] = "SumegGN CrossPoint";
-constexpr char DEVICE_ID[] = "crosspoint-reader";
+constexpr char DEVICE_NAME[] = "SEEK";
+constexpr char DEVICE_ID[] = "seek-reader";
 
 void addAuthHeaders(HTTPClient& http) {
   http.addHeader("Accept", "application/vnd.koreader.v1+json");
