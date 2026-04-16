@@ -191,7 +191,7 @@ void enterDeepSleep() {
     // Use placeholder values if direct reader access is complex from main.cpp
     // Ideally, the current activity's onExit() handles this via activityManager.goToSleep()
     // but a direct call here is the ultimate safety net.
-    StatsManager.endSession(APP_STATE.readerActivityLoadCount > 0 ? 0 : 0, 0);
+    StatsManager.endSession(0, 0);
   }
 
   APP_STATE.saveToFile();

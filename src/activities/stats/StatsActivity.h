@@ -22,7 +22,6 @@ class StatsActivity final : public Activity {
   bool showingFinished = false;  // NEW: Toggle between Reading and Finished views
 
   static void formatDuration(char* buf, size_t bufLen, uint32_t ms);
-  static void formatPercent(char* buf, size_t bufLen, uint8_t percent);
   uint8_t getVisibleBookCount() const;
 
   int selectedBookIndex = 0;

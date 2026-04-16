@@ -39,9 +39,9 @@ void StatsActivity::formatDuration(char* buf, size_t bufLen, uint32_t ms) {
 /**
  * @brief Formats a progress percentage into a string (e.g., "100%").
  */
-void StatsActivity::formatPercent(char* buf, size_t bufLen, uint8_t percent) {
-  snprintf(buf, bufLen, "%u%%", static_cast<unsigned>(percent));
-}
+// void StatsActivity::formatPercent(char* buf, size_t bufLen, uint8_t percent) {
+//   snprintf(buf, bufLen, "%u%%", static_cast<unsigned>(percent));
+// }
 
 /**
  * @brief Returns the number of books that have not yet reached 100% completion.
