@@ -20,10 +20,17 @@ My primary goal with SEEK is to build a highly customizable, personalized readin
 * Multi-language support.
 
 **SEEK Customizations & Features (My Additions):**
-* **Detailed Reading Statistics:** A dedicated, E-ink optimized statistics screen tracking all-time reading hours, session counts, per-book progress, and precision metrics (pages/min) using floating-point math.
 * **Custom UI & Layouts:** Multiple dynamic UI themes, including a memory-safe **3x2 Recent6 Grid layout**, an asymmetrical bottom menu, and cascading cover resolution fallbacks to prevent E-ink ghosting.
 * **Apps Submenu:** A centralized, easily navigable hub for utility applications (File Transfer, Stats, OPDS) keeping the Home screen clean.
 * **Overhauled KOReader Sync:** Custom asymmetrical, heuristic paragraph-level synchronization that fixes chapter drift and prevents remote device XML parser crashes.
+* **Refactored Reading Statistics (v2.5):** * **Global Dashboard**: Tracks all-time reading hours and the total number of finished books.
+    * **Contextual Filtering**: Toggle between "Reading" and "Finished" book lists using the `Right` hardware button.
+    * **Detailed Analytics**: Per-book view showing "Last Session" duration, total reading time, and precision metrics (Avg pages/min).
+    * **Adaptive UI**: Support for 3-line book titles with intelligent wrapping and strict list-view truncation to prevent E-ink display overlaps.
+* **System Stability & Persistence:**
+    * **Deep Sleep Protection**: Forced session saving during the power-off sequence to prevent data loss even if the device is not manually exited.
+    * **Session Guarding**: Smart 3-minute threshold for session tracking to avoid corrupting stats with short wake-up cycles.
+    * **Binary Migration**: Seamless v4/v5 to v6 data migration engine for the `stats.bin` database.
 * **More to come:** I am actively shaping the firmware, so expect more personalized features, custom sleep screens, and UI overhauls.
 
 ## Features & Usage
