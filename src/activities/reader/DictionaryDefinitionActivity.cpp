@@ -1,13 +1,17 @@
 #include "DictionaryDefinitionActivity.h"
-#include "util/Dictionary.h"
-#include "util/LookupHistory.h"
-#include "components/UITheme.h"
-#include "CrossPointSettings.h"
+
+#include <I18n.h>
+
 #include <sstream>
 
-DictionaryDefinitionActivity::DictionaryDefinitionActivity(
-    GfxRenderer& renderer, MappedInputManager& mappedInput, 
-    std::string word, std::string cachePath, int fontId)
+#include "CrossPointSettings.h"
+#include "components/UITheme.h"
+#include "fontIds.h"
+#include "util/Dictionary.h"
+#include "util/LookupHistory.h"
+
+DictionaryDefinitionActivity::DictionaryDefinitionActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
+                                                           std::string word, std::string cachePath, int fontId)
     : Activity("DictionaryDefinition", renderer, mappedInput),
       targetWord(std::move(word)),
       cachePath(std::move(cachePath)),
@@ -15,7 +19,7 @@ DictionaryDefinitionActivity::DictionaryDefinitionActivity(
 
 void DictionaryDefinitionActivity::onEnter() {
   Activity::onEnter();
-  requestUpdate(); 
+  requestUpdate();
   performLookup();
 }
 
@@ -27,7 +31,7 @@ void DictionaryDefinitionActivity::performLookup() {
     for (const auto& stem : stems) {
       definition = Dictionary::lookup(stem);
       if (!definition.empty()) {
-        targetWord = stem; 
+        targetWord = stem;
         break;
       }
     }
@@ -48,40 +52,29 @@ void DictionaryDefinitionActivity::wrapText() {
   wrappedLines.clear();
   if (definition.empty()) return;
 
-  const int margin = SETTINGS.screenMargin * 2;
-  const int maxWidth = renderer.getDisplayWidth() - (margin * 2);
-  
-  std::string currentLine;
-  std::string currentWord;
-  
-  for (char c : definition) {
-    if (c == ' ' || c == '\n') {
-      int lineWidth = renderer.getTextWidth(fontId, (currentLine + currentWord).c_str());
-      if (lineWidth > maxWidth && !currentLine.empty()) {
-        wrappedLines.push_back(currentLine);
-        currentLine = currentWord + " ";
-      } else {
-        currentLine += currentWord + " ";
-      }
-      currentWord.clear();
-      
-      if (c == '\n') {
-        wrappedLines.push_back(currentLine);
-        currentLine.clear();
-      }
-    } else {
-      currentWord += c;
+  const int margin = 20;
+  const int maxWidth = renderer.getScreenWidth() - (margin * 2);
+
+  std::stringstream ss(definition);
+  std::string paragraph;
+  while (std::getline(ss, paragraph, '\n')) {
+    if (paragraph.empty()) {
+      wrappedLines.push_back("");
+      continue;
     }
-  }
-  
-  if (!currentWord.empty() || !currentLine.empty()) {
-    wrappedLines.push_back(currentLine + currentWord);
+
+    auto pLines = renderer.wrappedText(fontId, paragraph.c_str(), maxWidth, 1000);
+    wrappedLines.insert(wrappedLines.end(), pLines.begin(), pLines.end());
   }
 
   lineHeight = renderer.getLineHeight(fontId);
-  const int headerHeight = lineHeight * 3; 
-  const int availableHeight = renderer.getDisplayHeight() - headerHeight - 40;
-  
+
+  const int titleH = renderer.getLineHeight(UI_12_FONT_ID);
+  const int startY = margin + titleH + (margin * 2);
+
+  const int bottomMarginForHints = 55;
+  const int availableHeight = renderer.getScreenHeight() - startY - bottomMarginForHints;
+
   linesPerPage = availableHeight / lineHeight;
   maxScroll = std::max(0, static_cast<int>(wrappedLines.size()) - linesPerPage);
 }
@@ -117,39 +110,39 @@ void DictionaryDefinitionActivity::loop() {
 
 void DictionaryDefinitionActivity::render(RenderLock&&) {
   renderer.clearScreen();
-  
-  const int margin = SETTINGS.screenMargin * 2;
+
+  const int margin = 20;
   int currentY = margin;
 
   if (isLoading) {
-    renderer.drawText(fontId, margin, currentY, "Looking up...");
+    renderer.drawText(fontId, margin, currentY, tr(STR_LOOKING_UP));
   } else if (notFound) {
-    renderer.drawText(fontId, margin, currentY, ("Word not found: " + targetWord).c_str());
+    std::string notFoundMsg = std::string(tr(STR_WORD_NOT_FOUND)) + targetWord;
+    renderer.drawText(fontId, margin, currentY, notFoundMsg.c_str());
   } else {
-    // FIX: Removed the 'false' flag to use default rendering (black text), ensuring it is always visible!
-    renderer.drawText(fontId, margin, currentY, targetWord.c_str()); 
-    
-    // Draw a nice 3-pixel thick underline to separate the title from the definition
-    int titleWidth = renderer.getTextWidth(fontId, targetWord.c_str());
-    renderer.fillRect(margin, currentY + lineHeight + 2, titleWidth, 3, true);
-    
-    currentY += lineHeight + (margin * 2);
+    renderer.drawText(UI_12_FONT_ID, margin, currentY, targetWord.c_str(), EpdFontFamily::BOLD);
+
+    int titleWidth = renderer.getTextWidth(UI_12_FONT_ID, targetWord.c_str(), EpdFontFamily::BOLD);
+    int titleH = renderer.getLineHeight(UI_12_FONT_ID);
+    renderer.fillRect(margin, currentY + titleH + 4, titleWidth, 3, true);
+
+    currentY += titleH + (margin * 2);
 
     int linesToDraw = std::min(linesPerPage, static_cast<int>(wrappedLines.size()) - scrollOffset);
     for (int i = 0; i < linesToDraw; ++i) {
       renderer.drawText(fontId, margin, currentY, wrappedLines[scrollOffset + i].c_str());
       currentY += lineHeight;
     }
-    
+
     if (scrollOffset > 0) {
-      renderer.drawText(fontId, renderer.getDisplayWidth() - margin - 20, margin * 2, "^");
+      renderer.drawText(fontId, renderer.getScreenWidth() - margin - 20, margin * 2, "^");
     }
     if (scrollOffset < maxScroll) {
-      renderer.drawText(fontId, renderer.getDisplayWidth() - margin - 20, renderer.getDisplayHeight() - margin * 3, "v");
+      renderer.drawText(fontId, renderer.getScreenWidth() - margin - 20, renderer.getScreenHeight() - 60, "v");
     }
   }
 
-  const auto labels = mappedInput.mapLabels("Close", "", "Scroll", "");
+  const auto labels = mappedInput.mapLabels(tr(STR_BACK), "", tr(STR_SCROLL), "");
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 
   renderer.displayBuffer(HalDisplay::FAST_REFRESH);

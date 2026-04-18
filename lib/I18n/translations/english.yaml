@@ -304,5 +304,10 @@ STR_THEME_RECENT6: "Recent6"
 STR_FINISHED_BOOKS: "Finished Books"
 STR_STATS_VIEW_FINISHED: "Finished"
 STR_STATS_VIEW_READING: "Reading"
+STR_LOOKUP: "Lookup"
+STR_LOOKING_UP: "Looking up..."
+STR_WORD_NOT_FOUND: "Word not found: "
+STR_UP_DOWN: "Up/Down"
+STR_SCROLL: "Scroll"
 
 

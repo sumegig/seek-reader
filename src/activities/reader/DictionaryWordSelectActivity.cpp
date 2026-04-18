@@ -3,6 +3,7 @@
 #include <Epub/Page.h>
 #include <Epub/blocks/TextBlock.h>
 #include <GfxRenderer.h>
+#include <I18n.h>
 
 #include <algorithm>
 #include <cctype>
@@ -28,6 +29,7 @@ DictionaryWordSelectActivity::DictionaryWordSelectActivity(GfxRenderer& renderer
 void DictionaryWordSelectActivity::onEnter() {
   Activity::onEnter();
   extractWords();
+  mergeHyphenatedWords();
   requestUpdate();
 }
 
@@ -61,23 +63,59 @@ void DictionaryWordSelectActivity::extractWords() {
 
     for (size_t i = 0; i < lineWords.size(); ++i) {
       const std::string& raw = lineWords[i];
+      int16_t baseX = marginLeft + line.xPos + wordXpos[i];
 
-      int16_t exactX = marginLeft + line.xPos + wordXpos[i];
-      int16_t exactWidth = renderer.getTextWidth(fontId, raw.c_str(), wordStyles[i]);
+      std::string prefix = "";
+      std::string current_word = "";
 
-      std::string lookup = raw;
-      while (!lookup.empty() && std::ispunct(static_cast<unsigned char>(lookup.front()))) {
-        lookup.erase(0, 1);
+      auto emitWord = [&]() {
+        if (current_word.empty()) return;
+
+        int pre_w = prefix.empty() ? 0 : renderer.getTextWidth(fontId, prefix.c_str(), wordStyles[i]);
+        int word_w = renderer.getTextWidth(fontId, current_word.c_str(), wordStyles[i]);
+
+        std::string lookup = current_word;
+        while (!lookup.empty() && lookup.back() == '\'') lookup.pop_back();
+        while (!lookup.empty() && lookup.front() == '\'') lookup.erase(0, 1);
+
+        if (!lookup.empty()) {
+          int wordIndex = static_cast<int>(words.size());
+          words.emplace_back(current_word, baseX + pre_w, currentY, word_w, currentRowIndex);
+          words.back().lookupText = lookup;
+          rows[currentRowIndex].wordIndices.push_back(wordIndex);
+        }
+      };
+
+      for (size_t c = 0; c < raw.length();) {
+        unsigned char ch = static_cast<unsigned char>(raw[c]);
+
+        if (ch == 0xE2 && c + 2 < raw.length() && static_cast<unsigned char>(raw[c + 1]) == 0x80) {
+          emitWord();
+          prefix += current_word + raw.substr(c, 3);
+          current_word = "";
+          c += 3;
+          continue;
+        }
+
+        bool isWordChar = (ch > 127 || std::isalnum(ch) || ch == '\'');
+
+        if (isWordChar) {
+          current_word += raw[c];
+          c++;
+        } else {
+          emitWord();
+          prefix += current_word + raw[c];
+          current_word = "";
+          c++;
+        }
       }
-      while (!lookup.empty() && std::ispunct(static_cast<unsigned char>(lookup.back()))) {
-        lookup.pop_back();
+      emitWord();
+
+      if (i == lineWords.size() - 1 && !raw.empty() && raw.back() == '-') {
+        if (!words.empty() && words.back().rowIndex == currentRowIndex) {
+          words.back().isHyphenatedLineEnd = true;
+        }
       }
-
-      int wordIndex = static_cast<int>(words.size());
-
-      words.emplace_back(raw, exactX, currentY, exactWidth, currentRowIndex);
-      words.back().lookupText = lookup;
-      rows[currentRowIndex].wordIndices.push_back(wordIndex);
     }
   }
 
@@ -185,18 +223,42 @@ void DictionaryWordSelectActivity::render(RenderLock&&) {
     int selectedWordIdx = rows[currentRow].wordIndices[currentWordInRow];
     const int lineHeight = renderer.getLineHeight(fontId);
 
-    const WordInfo& word = words[selectedWordIdx];
-    int boxX = word.screenX;
-    int boxY = word.screenY;
-    int boxWidth = word.width;
+    auto drawHighlight = [&](int index) {
+      const WordInfo& word = words[index];
+      int boxX = word.screenX;
+      int boxY = word.screenY;
+      int boxWidth = word.width;
 
-    renderer.fillRect(boxX, boxY + lineHeight + 2, boxWidth, 3, true);
-    renderer.fillRect(boxX, boxY - 3, boxWidth, 1, true);
-    renderer.fillRect(boxX - 3, boxY - 3, 2, lineHeight + 8, true);
-    renderer.fillRect(boxX + boxWidth + 1, boxY - 3, 2, lineHeight + 8, true);
+      renderer.fillRect(boxX, boxY + lineHeight + 2, boxWidth, 3, true);
+      renderer.fillRect(boxX, boxY - 3, boxWidth, 1, true);
+      renderer.fillRect(boxX - 3, boxY - 3, 2, lineHeight + 8, true);
+      renderer.fillRect(boxX + boxWidth + 1, boxY - 3, 2, lineHeight + 8, true);
+    };
+
+    drawHighlight(selectedWordIdx);
+
+    if (words[selectedWordIdx].continuationIndex != -1) {
+      drawHighlight(words[selectedWordIdx].continuationIndex);
+    }
+    if (words[selectedWordIdx].continuationOf != -1) {
+      drawHighlight(words[selectedWordIdx].continuationOf);
+    }
   }
 
-  const auto labels = mappedInput.mapLabels("Cancel", "Lookup", "Up/Down", "Prev/Next");
+  const auto labels = mappedInput.mapLabels(tr(STR_CANCEL), tr(STR_LOOKUP), tr(STR_UP_DOWN), tr(STR_PREV_NEXT));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+}
+
+void DictionaryWordSelectActivity::mergeHyphenatedWords() {
+  if (words.empty()) return;
+  for (size_t i = 0; i < words.size(); ++i) {
+    if (words[i].isHyphenatedLineEnd && i + 1 < words.size()) {
+      std::string merged = words[i].lookupText + words[i + 1].lookupText;
+      words[i].lookupText = merged;
+      words[i + 1].lookupText = merged;
+      words[i].continuationIndex = static_cast<int>(i + 1);
+      words[i + 1].continuationOf = static_cast<int>(i);
+    }
+  }
 }
