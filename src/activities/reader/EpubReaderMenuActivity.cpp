@@ -7,21 +7,33 @@
 #include "components/UITheme.h"
 #include "fontIds.h"
 
+namespace {
+// Corrected orientation labels based on your english.yaml file
+const std::vector<StrId> orientationLabels = {
+    StrId::STR_PORTRAIT, 
+    StrId::STR_LANDSCAPE_CW, 
+    StrId::STR_INVERTED, 
+    StrId::STR_LANDSCAPE_CCW
+};
+const std::vector<std::string> pageTurnLabels = {"Off", "10s", "30s", "1m", "2m", "5m"};
+}  // namespace
+
 EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                const std::string& title, const int currentPage, const int totalPages,
                                                const int bookProgressPercent, const uint8_t currentOrientation,
-                                               const bool hasFootnotes)
+                                               const bool hasFootnotes, const bool hasDictionary, const bool hasLookupHistory)
     : Activity("EpubReaderMenu", renderer, mappedInput),
-      menuItems(buildMenuItems(hasFootnotes)),
+      menuItems(buildMenuItems(hasFootnotes, hasDictionary, hasLookupHistory)),
       title(title),
       pendingOrientation(currentOrientation),
       currentPage(currentPage),
       totalPages(totalPages),
       bookProgressPercent(bookProgressPercent) {}
 
-std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuItems(bool hasFootnotes) {
+std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuItems(bool hasFootnotes, bool hasDictionary, bool hasLookupHistory) {
   std::vector<MenuItem> items;
-  items.reserve(10);
+  items.reserve(12);
+  
   items.push_back({MenuAction::SELECT_CHAPTER, StrId::STR_SELECT_CHAPTER});
   if (hasFootnotes) {
     items.push_back({MenuAction::FOOTNOTES, StrId::STR_FOOTNOTES});
@@ -34,6 +46,17 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
   items.push_back({MenuAction::GO_HOME, StrId::STR_GO_HOME_BUTTON});
   items.push_back({MenuAction::SYNC, StrId::STR_SYNC_PROGRESS});
   items.push_back({MenuAction::DELETE_CACHE, StrId::STR_DELETE_CACHE});
+
+  // Add Dictionary lookup if files exist on SD card
+  if (hasDictionary) {
+    items.push_back({MenuAction::LOOKUP, (StrId)0, "Lookup"});
+  }
+  
+  // Add History if lookups.txt exists
+  if (hasLookupHistory) {
+    items.push_back({MenuAction::LOOKED_UP_WORDS, (StrId)0, "Lookup History"});
+  }
+
   return items;
 }
 
@@ -71,13 +94,15 @@ void EpubReaderMenuActivity::loop() {
       return;
     }
 
-    setResult(MenuResult{static_cast<int>(selectedAction), pendingOrientation, selectedPageTurnOption});
+    // Fixed narrowing conversion warning by explicitly casting to uint8_t
+    setResult(MenuResult{static_cast<int>(selectedAction), pendingOrientation, static_cast<uint8_t>(selectedPageTurnOption)});
     finish();
     return;
   } else if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
     ActivityResult result;
     result.isCancelled = true;
-    result.data = MenuResult{-1, pendingOrientation, selectedPageTurnOption};
+    // Fixed narrowing conversion warning by explicitly casting to uint8_t
+    result.data = MenuResult{-1, pendingOrientation, static_cast<uint8_t>(selectedPageTurnOption)};
     setResult(std::move(result));
     finish();
     return;
@@ -132,7 +157,12 @@ void EpubReaderMenuActivity::render(RenderLock&&) {
       renderer.fillRect(contentX, displayY, contentWidth - 1, lineHeight, true);
     }
 
-    renderer.drawText(UI_10_FONT_ID, contentX + 20, displayY, I18N.get(menuItems[i].labelId), !isSelected);
+    // Determine the label text: use customLabel if labelId is 0 (for Dictionary features)
+    const char* labelText = (menuItems[i].labelId != (StrId)0) 
+                            ? I18N.get(menuItems[i].labelId) 
+                            : menuItems[i].customLabel.c_str();
+
+    renderer.drawText(UI_10_FONT_ID, contentX + 20, displayY, labelText, !isSelected);
 
     if (menuItems[i].action == MenuAction::ROTATE_SCREEN) {
       // Render current orientation value on the right edge of the content area.
@@ -144,8 +174,8 @@ void EpubReaderMenuActivity::render(RenderLock&&) {
     if (menuItems[i].action == MenuAction::AUTO_PAGE_TURN) {
       // Render current page turn value on the right edge of the content area.
       const auto value = pageTurnLabels[selectedPageTurnOption];
-      const auto width = renderer.getTextWidth(UI_10_FONT_ID, value);
-      renderer.drawText(UI_10_FONT_ID, contentX + contentWidth - 20 - width, displayY, value, !isSelected);
+      const auto width = renderer.getTextWidth(UI_10_FONT_ID, value.c_str());
+      renderer.drawText(UI_10_FONT_ID, contentX + contentWidth - 20 - width, displayY, value.c_str(), !isSelected);
     }
   }
 

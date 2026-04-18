@@ -26,6 +26,11 @@
 #include "stats/ReadingStatsManager.h"  // added when developing Statistics menu
 #include "util/ScreenshotUtil.h"
 
+// Dictionary development
+#include "DictionaryWordSelectActivity.h"
+#include "util/Dictionary.h"
+#include "util/LookupHistory.h"
+
 namespace {
 // pagesPerRefresh now comes from SETTINGS.getRefreshFrequency()
 constexpr unsigned long skipChapterMs = 700;
@@ -171,9 +176,14 @@ void EpubReaderActivity::loop() {
       bookProgress = epub->calculateProgress(currentSpineIndex, chapterProgress) * 100.0f;
     }
     const int bookProgressPercent = clampPercent(static_cast<int>(bookProgress + 0.5f));
+
+    const bool hasDictionary = Dictionary::exists();
+    const bool hasLookupHistory = hasDictionary && LookupHistory::hasHistory(epub->getCachePath());
+
     startActivityForResult(std::make_unique<EpubReaderMenuActivity>(
                                renderer, mappedInput, epub->getTitle(), currentPage, totalPages, bookProgressPercent,
-                               SETTINGS.orientation, !currentPageFootnotes.empty()),
+                               SETTINGS.orientation, !currentPageFootnotes.empty(), hasDictionary, hasLookupHistory),
+
                            [this](const ActivityResult& result) {
                              // Always apply orientation change even if the menu was cancelled
                              const auto& menu = std::get<MenuResult>(result.data);
@@ -323,6 +333,76 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
           });
       break;
     }
+
+    case EpubReaderMenuActivity::MenuAction::LOOKUP: {
+      std::unique_ptr<Page> pageForLookup;
+      std::string nextPageFirstWord;
+      int orientedMarginTop = 0;
+      int orientedMarginLeft = 0;
+
+      {
+        RenderLock lock(*this);
+        if (!section) {
+          requestUpdate();
+          break;
+        }
+
+        int orientedMarginRight;
+        int orientedMarginBottom;
+        renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
+                                         &orientedMarginLeft);
+
+        orientedMarginTop += SETTINGS.screenMargin;
+        orientedMarginLeft += SETTINGS.screenMargin;
+        orientedMarginRight += SETTINGS.screenMargin;
+
+        const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
+        if (automaticPageTurnActive &&
+            (statusBarHeight == 0 || statusBarHeight == UITheme::getInstance().getProgressBarHeight())) {
+          orientedMarginBottom += std::max(
+              SETTINGS.screenMargin,
+              static_cast<uint8_t>(statusBarHeight + UITheme::getInstance().getMetrics().statusBarVerticalMargin));
+        } else {
+          orientedMarginBottom += std::max(SETTINGS.screenMargin, statusBarHeight);
+        }
+
+        pageForLookup = section->loadPageFromSectionFile();
+
+        if (section->currentPage < section->pageCount - 1) {
+          const int savedPage = section->currentPage;
+          section->currentPage = savedPage + 1;
+          auto nextPage = section->loadPageFromSectionFile();
+          section->currentPage = savedPage;
+
+          if (nextPage) {
+            for (const auto& element : nextPage->elements) {
+              if (!element || element->getTag() != TAG_PageLine) continue;
+
+              const auto& line = static_cast<const PageLine&>(*element);
+              auto block = line.getBlock();
+              if (!block) continue;
+
+              const auto& words = block->getWords();
+
+              if (!words.empty()) {
+                nextPageFirstWord = words.front();
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if (pageForLookup) {
+        startActivityForResult(
+            std::make_unique<DictionaryWordSelectActivity>(
+                renderer, mappedInput, std::move(pageForLookup), SETTINGS.getReaderFontId(), orientedMarginLeft,
+                orientedMarginTop, epub->getCachePath(), SETTINGS.orientation, nextPageFirstWord),
+            [this](const ActivityResult& result) { requestUpdate(); });
+      }
+      break;
+    }
+
     case EpubReaderMenuActivity::MenuAction::FOOTNOTES: {
       startActivityForResult(std::make_unique<EpubReaderFootnotesActivity>(renderer, mappedInput, currentPageFootnotes),
                              [this](const ActivityResult& result) {

@@ -1,32 +1,39 @@
 #pragma once
-#include <Epub.h>
-#include <I18n.h>
 
 #include <string>
 #include <vector>
 
-#include "../Activity.h"
+#include "I18n.h"
+#include "activities/Activity.h"
 #include "util/ButtonNavigator.h"
 
 class EpubReaderMenuActivity final : public Activity {
  public:
-  // Menu actions available from the reader menu.
   enum class MenuAction {
     SELECT_CHAPTER,
     FOOTNOTES,
-    GO_TO_PERCENT,
-    AUTO_PAGE_TURN,
     ROTATE_SCREEN,
+    AUTO_PAGE_TURN,
+    GO_TO_PERCENT,
     SCREENSHOT,
     DISPLAY_QR,
     GO_HOME,
     SYNC,
-    DELETE_CACHE
+    DELETE_CACHE,
+    LOOKUP,          // Added for Dictionary functionality
+    LOOKED_UP_WORDS  // Added for Dictionary history
+  };
+
+  struct MenuItem {
+    MenuAction action;
+    StrId labelId;
+    std::string customLabel = "";  // Fallback for labels without StrId (like "Lookup")
   };
 
   explicit EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, const std::string& title,
                                   const int currentPage, const int totalPages, const int bookProgressPercent,
-                                  const uint8_t currentOrientation, const bool hasFootnotes);
+                                  const uint8_t currentOrientation, const bool hasFootnotes, const bool hasDictionary,
+                                  const bool hasLookupHistory);
 
   void onEnter() override;
   void onExit() override;
@@ -34,26 +41,16 @@ class EpubReaderMenuActivity final : public Activity {
   void render(RenderLock&&) override;
 
  private:
-  struct MenuItem {
-    MenuAction action;
-    StrId labelId;
-  };
-
-  static std::vector<MenuItem> buildMenuItems(bool hasFootnotes);
-
-  // Fixed menu layout
-  const std::vector<MenuItem> menuItems;
-
+  std::vector<MenuItem> menuItems;
+  std::string title;
+  uint8_t pendingOrientation;
+  int currentPage;
+  int totalPages;
+  int bookProgressPercent;
   int selectedIndex = 0;
+  uint8_t selectedPageTurnOption = 0;
 
   ButtonNavigator buttonNavigator;
-  std::string title = "Reader Menu";
-  uint8_t pendingOrientation = 0;
-  uint8_t selectedPageTurnOption = 0;
-  const std::vector<StrId> orientationLabels = {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW, StrId::STR_INVERTED,
-                                                StrId::STR_LANDSCAPE_CCW};
-  const std::vector<const char*> pageTurnLabels = {I18N.get(StrId::STR_STATE_OFF), "1", "3", "6", "12"};
-  int currentPage = 0;
-  int totalPages = 0;
-  int bookProgressPercent = 0;
+
+  std::vector<MenuItem> buildMenuItems(bool hasFootnotes, bool hasDictionary, bool hasLookupHistory);
 };
