@@ -1,10 +1,10 @@
 #include "LookupHistory.h"
+
 #include <HalStorage.h>
+
 #include <algorithm>
 
-std::string LookupHistory::filePath(const std::string& cachePath) { 
-  return cachePath + "/lookups.txt";
-}
+std::string LookupHistory::filePath(const std::string& cachePath) { return cachePath + "/lookups.txt"; }
 
 bool LookupHistory::hasHistory(const std::string& cachePath) {
   FsFile f;
@@ -23,7 +23,7 @@ std::vector<std::string> LookupHistory::load(const std::string& cachePath) {
   if (!Storage.openFileForRead("LKH", filePath(cachePath), f)) {
     return words;
   }
-  
+
   std::string line;
   while (f.available() && static_cast<int>(words.size()) < MAX_ENTRIES) {
     char c;
@@ -38,11 +38,11 @@ std::vector<std::string> LookupHistory::load(const std::string& cachePath) {
       line += c;
     }
   }
-  
+
   if (!line.empty() && static_cast<int>(words.size()) < MAX_ENTRIES) {
     words.push_back(line);
   }
-  
+
   f.close();
   return words;
 }
@@ -55,7 +55,7 @@ void LookupHistory::removeWord(const std::string& cachePath, const std::string& 
   if (!Storage.openFileForWrite("LKH", filePath(cachePath), f)) {
     return;
   }
-  
+
   for (const auto& w : existing) {
     if (w != word) {
       f.write(reinterpret_cast<const uint8_t*>(w.c_str()), w.size());
@@ -70,21 +70,21 @@ void LookupHistory::addWord(const std::string& cachePath, const std::string& wor
 
   auto existing = load(cachePath);
   if (std::any_of(existing.begin(), existing.end(), [&word](const std::string& w) { return w == word; })) {
-      return; // Word already exists
+    return;  // Word already exists
   }
 
   if (static_cast<int>(existing.size()) >= MAX_ENTRIES) return;
-  
+
   FsFile f;
   if (!Storage.openFileForWrite("LKH", filePath(cachePath), f)) {
     return;
   }
-  
+
   for (const auto& w : existing) {
     f.write(reinterpret_cast<const uint8_t*>(w.c_str()), w.size());
     f.write(reinterpret_cast<const uint8_t*>("\n"), 1);
   }
-  
+
   f.write(reinterpret_cast<const uint8_t*>(word.c_str()), word.size());
   f.write(reinterpret_cast<const uint8_t*>("\n"), 1);
   f.close();

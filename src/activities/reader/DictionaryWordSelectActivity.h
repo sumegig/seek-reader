@@ -1,10 +1,11 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
-#include "activities/Activity.h"
+
 #include "Epub/Page.h"
+#include "activities/Activity.h"
 
 struct WordInfo {
   std::string text;
@@ -13,8 +14,7 @@ struct WordInfo {
   int screenY;
   int width;
   int rowIndex;
-  
- 
+
   bool isHyphenatedLineEnd = false;
   int continuationIndex = -1;
   int continuationOf = -1;

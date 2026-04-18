@@ -1,6 +1,7 @@
 #pragma once
 
 #include <HalStorage.h>
+
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -12,8 +13,7 @@ class Dictionary {
   static bool exists();
 
   // Looks up a word and returns its definition. Supports progress callbacks.
-  static std::string lookup(const std::string& word, 
-                            const std::function<void(int percent)>& onProgress = nullptr,
+  static std::string lookup(const std::string& word, const std::function<void(int percent)>& onProgress = nullptr,
                             const std::function<bool()>& shouldCancel = nullptr);
 
   // Removes punctuation and converts to lowercase
@@ -31,11 +31,10 @@ class Dictionary {
   static uint32_t totalWords;
   static bool indexLoaded;
 
-  static bool loadIndex(const std::function<void(int percent)>& onProgress, 
-                        const std::function<bool()>& shouldCancel);
+  static bool loadIndex(const std::function<void(int percent)>& onProgress, const std::function<bool()>& shouldCancel);
   static bool loadCachedIndex();
   static void saveCachedIndex();
-  
+
   static std::string readWord(FsFile& file);
   static std::string readDefinition(uint32_t offset, uint32_t size);
   static int editDistance(const std::string& a, const std::string& b, int maxDist);

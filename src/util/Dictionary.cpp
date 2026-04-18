@@ -1,5 +1,7 @@
 #include "Dictionary.h"
+
 #include <HalStorage.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -16,15 +18,11 @@ bool Dictionary::indexLoaded = false;
 
 // Helper to convert Big-Endian uint32 to ESP32 Little-Endian
 static uint32_t swap32(uint32_t val) {
-  return ((val << 24) & 0xFF000000) |
-         ((val << 8)  & 0x00FF0000) |
-         ((val >> 8)  & 0x0000FF00) |
+  return ((val << 24) & 0xFF000000) | ((val << 8) & 0x00FF0000) | ((val >> 8) & 0x0000FF00) |
          ((val >> 24) & 0x000000FF);
 }
 
-bool Dictionary::exists() {
-  return Storage.exists(DICT_FILE) && Storage.exists(IDX_FILE);
-}
+bool Dictionary::exists() { return Storage.exists(DICT_FILE) && Storage.exists(IDX_FILE); }
 
 std::string Dictionary::cleanWord(const std::string& word) {
   std::string clean;
@@ -43,17 +41,17 @@ std::vector<std::string> Dictionary::getStemVariants(const std::string& word) {
   // Simple English stemming heuristics
   if (word.back() == 's') {
     variants.push_back(word.substr(0, word.length() - 1));
-    if (word.length() > 2 && word.substr(word.length() - 2) == "es") {
+    if (word.substr(word.length() - 2) == "es") {
       variants.push_back(word.substr(0, word.length() - 2));
     }
   }
-  if (word.length() > 2 && word.substr(word.length() - 2) == "ed") {
-    variants.push_back(word.substr(0, word.length() - 1)); // e.g., baked -> bake
-    variants.push_back(word.substr(0, word.length() - 2)); // e.g., started -> start
+  if (word.substr(word.length() - 2) == "ed") {
+    variants.push_back(word.substr(0, word.length() - 1));  // e.g., baked -> bake
+    variants.push_back(word.substr(0, word.length() - 2));  // e.g., started -> start
   }
-  if (word.length() > 3 && word.substr(word.length() - 3) == "ing") {
-    variants.push_back(word.substr(0, word.length() - 3)); // e.g., playing -> play
-    variants.push_back(word.substr(0, word.length() - 3) + "e"); // e.g., making -> make
+  if (word.substr(word.length() - 3) == "ing") {
+    variants.push_back(word.substr(0, word.length() - 3));        // e.g., playing -> play
+    variants.push_back(word.substr(0, word.length() - 3) + "e");  // e.g., making -> make
   }
   return variants;
 }
@@ -63,23 +61,24 @@ bool Dictionary::loadCachedIndex() {
   if (!Storage.openFileForRead("DICT", CACHE_FILE, f)) {
     return false;
   }
-  
+
   uint32_t count = 0;
-  if (f.read((uint8_t*)&count, sizeof(count)) != sizeof(count)) {
+  if (f.read(reinterpret_cast<uint8_t*>(&count), sizeof(count)) != sizeof(count)) {
     f.close();
     return false;
   }
-  
+
   totalWords = count;
   uint32_t sparseSize = (count + SPARSE_INTERVAL - 1) / SPARSE_INTERVAL;
   sparseOffsets.resize(sparseSize);
-  
-  if (f.read((uint8_t*)sparseOffsets.data(), sparseSize * sizeof(uint32_t)) != sparseSize * sizeof(uint32_t)) {
+
+  if (f.read(reinterpret_cast<uint8_t*>(sparseOffsets.data()), sparseSize * sizeof(uint32_t)) !=
+      sparseSize * sizeof(uint32_t)) {
     sparseOffsets.clear();
     f.close();
     return false;
   }
-  
+
   f.close();
   indexLoaded = true;
   return true;
@@ -89,8 +88,8 @@ void Dictionary::saveCachedIndex() {
   Storage.mkdir("/.crosspoint");
   FsFile f;
   if (Storage.openFileForWrite("DICT", CACHE_FILE, f)) {
-    f.write((const uint8_t*)&totalWords, sizeof(totalWords));
-    f.write((const uint8_t*)sparseOffsets.data(), sparseOffsets.size() * sizeof(uint32_t));
+    f.write(reinterpret_cast<const uint8_t*>(&totalWords), sizeof(totalWords));
+    f.write(reinterpret_cast<const uint8_t*>(sparseOffsets.data()), sparseOffsets.size() * sizeof(uint32_t));
     f.close();
   }
 }
@@ -98,13 +97,14 @@ void Dictionary::saveCachedIndex() {
 std::string Dictionary::readWord(FsFile& file) {
   std::string word;
   char c;
-  while (file.read((uint8_t*)&c, 1) == 1 && c != '\0') {
+  while (file.read(reinterpret_cast<uint8_t*>(&c), 1) == 1 && c != '\0') {
     word += c;
   }
   return word;
 }
 
-bool Dictionary::loadIndex(const std::function<void(int percent)>& onProgress, const std::function<bool()>& shouldCancel) {
+bool Dictionary::loadIndex(const std::function<void(int percent)>& onProgress,
+                           const std::function<bool()>& shouldCancel) {
   if (loadCachedIndex()) return true;
 
   FsFile idxFile;
@@ -130,10 +130,10 @@ bool Dictionary::loadIndex(const std::function<void(int percent)>& onProgress, c
 
     // Read word string
     char c;
-    while (idxFile.read((uint8_t*)&c, 1) == 1 && c != '\0') {
+    while (idxFile.read(reinterpret_cast<uint8_t*>(&c), 1) == 1 && c != '\0') {
       currentOffset++;
     }
-    currentOffset++; // For the '\0'
+    currentOffset++;  // For the '\0'
 
     // Skip offset and size (2 * 4 bytes)
     idxFile.seek(currentOffset + 8);
@@ -144,7 +144,7 @@ bool Dictionary::loadIndex(const std::function<void(int percent)>& onProgress, c
   idxFile.close();
   indexLoaded = true;
   saveCachedIndex();
-  
+
   if (onProgress) onProgress(100);
   return true;
 }
@@ -156,17 +156,18 @@ std::string Dictionary::readDefinition(uint32_t offset, uint32_t size) {
   dictFile.seek(offset);
   std::string definition;
   definition.resize(size);
-  
-  if (dictFile.read((uint8_t*)definition.data(), size) == size) {
+
+  if (dictFile.read(reinterpret_cast<uint8_t*>(definition.data()), size) == size) {
     dictFile.close();
     return definition;
   }
-  
+
   dictFile.close();
   return "";
 }
 
-std::string Dictionary::lookup(const std::string& rawWord, const std::function<void(int percent)>& onProgress, const std::function<bool()>& shouldCancel) {
+std::string Dictionary::lookup(const std::string& rawWord, const std::function<void(int percent)>& onProgress,
+                               const std::function<bool()>& shouldCancel) {
   if (!exists()) return "";
   if (!indexLoaded && !loadIndex(onProgress, shouldCancel)) return "";
 
@@ -190,7 +191,7 @@ std::string Dictionary::lookup(const std::string& rawWord, const std::function<v
       closestSparseIdx = mid;
       break;
     } else if (currentWord < targetWord) {
-      closestSparseIdx = mid; // Might be in this chunk
+      closestSparseIdx = mid;  // Might be in this chunk
       low = mid + 1;
     } else {
       high = mid - 1;
@@ -199,17 +200,19 @@ std::string Dictionary::lookup(const std::string& rawWord, const std::function<v
 
   // Linear scan within the identified chunk
   idxFile.seek(sparseOffsets[closestSparseIdx]);
-  uint32_t chunkEnd = (closestSparseIdx + 1 < static_cast<int>(sparseOffsets.size())) ? sparseOffsets[closestSparseIdx + 1] : idxFile.size();
+  uint32_t chunkEnd = (closestSparseIdx + 1 < static_cast<int>(sparseOffsets.size()))
+                          ? sparseOffsets[closestSparseIdx + 1]
+                          : idxFile.size();
 
   while (idxFile.position() < chunkEnd) {
     if (shouldCancel && shouldCancel()) break;
 
     std::string word = readWord(idxFile);
     std::string clean = cleanWord(word);
-    
+
     uint32_t dataOffset, dataSize;
-    idxFile.read((uint8_t*)&dataOffset, sizeof(uint32_t));
-    idxFile.read((uint8_t*)&dataSize, sizeof(uint32_t));
+    idxFile.read(reinterpret_cast<uint8_t*>(&dataOffset), sizeof(uint32_t));
+    idxFile.read(reinterpret_cast<uint8_t*>(&dataSize), sizeof(uint32_t));
 
     // Convert from Big-Endian to Little-Endian
     dataOffset = swap32(dataOffset);
@@ -228,7 +231,7 @@ std::string Dictionary::lookup(const std::string& rawWord, const std::function<v
 int Dictionary::editDistance(const std::string& a, const std::string& b, int maxDist) {
   if (a.empty()) return b.length();
   if (b.empty()) return a.length();
-  
+
   std::vector<int> v0(b.length() + 1);
   std::vector<int> v1(b.length() + 1);
 
@@ -244,7 +247,7 @@ int Dictionary::editDistance(const std::string& a, const std::string& b, int max
       minRowDist = std::min(minRowDist, v1[j + 1]);
     }
     v0 = v1;
-    if (minRowDist > maxDist) return maxDist + 1; // Early exit
+    if (minRowDist > maxDist) return maxDist + 1;  // Early exit
   }
   return v0[b.length()];
 }
@@ -267,7 +270,7 @@ std::vector<std::string> Dictionary::findSimilar(const std::string& rawWord, int
   // We limit the search to a few chunks around the estimated position to avoid freezing
   // For a complete implementation, a more complex heuristic is needed.
   // For now, we scan 2000 words starting from the closest sparse index block.
-  
+
   int low = 0;
   int high = sparseOffsets.size() - 1;
   int closestSparseIdx = 0;
@@ -278,9 +281,11 @@ std::vector<std::string> Dictionary::findSimilar(const std::string& rawWord, int
     std::string currentWord = cleanWord(readWord(idxFile));
 
     if (currentWord == targetWord) {
-      closestSparseIdx = mid; break;
+      closestSparseIdx = mid;
+      break;
     } else if (currentWord < targetWord) {
-      closestSparseIdx = mid; low = mid + 1;
+      closestSparseIdx = mid;
+      low = mid + 1;
     } else {
       high = mid - 1;
     }
@@ -293,7 +298,7 @@ std::vector<std::string> Dictionary::findSimilar(const std::string& rawWord, int
   int wordsScanned = 0;
   while (idxFile.available() && wordsScanned < 3000) {
     std::string word = readWord(idxFile);
-    idxFile.seek(idxFile.position() + 8); // Skip offset and size
+    idxFile.seek(idxFile.position() + 8);  // Skip offset and size
     wordsScanned++;
 
     std::string clean = cleanWord(word);
@@ -308,7 +313,7 @@ std::vector<std::string> Dictionary::findSimilar(const std::string& rawWord, int
   idxFile.close();
 
   std::sort(candidates.begin(), candidates.end());
-  
+
   for (const auto& c : candidates) {
     if (results.size() >= maxResults) break;
     if (std::find(results.begin(), results.end(), c.word) == results.end()) {

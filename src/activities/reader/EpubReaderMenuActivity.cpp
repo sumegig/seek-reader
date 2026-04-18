@@ -9,19 +9,16 @@
 
 namespace {
 // Corrected orientation labels based on your english.yaml file
-const std::vector<StrId> orientationLabels = {
-    StrId::STR_PORTRAIT, 
-    StrId::STR_LANDSCAPE_CW, 
-    StrId::STR_INVERTED, 
-    StrId::STR_LANDSCAPE_CCW
-};
+const std::vector<StrId> orientationLabels = {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CW, StrId::STR_INVERTED,
+                                              StrId::STR_LANDSCAPE_CCW};
 const std::vector<std::string> pageTurnLabels = {"Off", "10s", "30s", "1m", "2m", "5m"};
 }  // namespace
 
 EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                const std::string& title, const int currentPage, const int totalPages,
                                                const int bookProgressPercent, const uint8_t currentOrientation,
-                                               const bool hasFootnotes, const bool hasDictionary, const bool hasLookupHistory)
+                                               const bool hasFootnotes, const bool hasDictionary,
+                                               const bool hasLookupHistory)
     : Activity("EpubReaderMenu", renderer, mappedInput),
       menuItems(buildMenuItems(hasFootnotes, hasDictionary, hasLookupHistory)),
       title(title),
@@ -30,10 +27,12 @@ EpubReaderMenuActivity::EpubReaderMenuActivity(GfxRenderer& renderer, MappedInpu
       totalPages(totalPages),
       bookProgressPercent(bookProgressPercent) {}
 
-std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuItems(bool hasFootnotes, bool hasDictionary, bool hasLookupHistory) {
+std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuItems(bool hasFootnotes,
+                                                                                     bool hasDictionary,
+                                                                                     bool hasLookupHistory) {
   std::vector<MenuItem> items;
   items.reserve(12);
-  
+
   items.push_back({MenuAction::SELECT_CHAPTER, StrId::STR_SELECT_CHAPTER});
   if (hasFootnotes) {
     items.push_back({MenuAction::FOOTNOTES, StrId::STR_FOOTNOTES});
@@ -51,7 +50,7 @@ std::vector<EpubReaderMenuActivity::MenuItem> EpubReaderMenuActivity::buildMenuI
   if (hasDictionary) {
     items.push_back({MenuAction::LOOKUP, (StrId)0, "Lookup"});
   }
-  
+
   // Add History if lookups.txt exists
   if (hasLookupHistory) {
     items.push_back({MenuAction::LOOKED_UP_WORDS, (StrId)0, "Lookup History"});
@@ -95,7 +94,8 @@ void EpubReaderMenuActivity::loop() {
     }
 
     // Fixed narrowing conversion warning by explicitly casting to uint8_t
-    setResult(MenuResult{static_cast<int>(selectedAction), pendingOrientation, static_cast<uint8_t>(selectedPageTurnOption)});
+    setResult(
+        MenuResult{static_cast<int>(selectedAction), pendingOrientation, static_cast<uint8_t>(selectedPageTurnOption)});
     finish();
     return;
   } else if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
@@ -158,9 +158,8 @@ void EpubReaderMenuActivity::render(RenderLock&&) {
     }
 
     // Determine the label text: use customLabel if labelId is 0 (for Dictionary features)
-    const char* labelText = (menuItems[i].labelId != (StrId)0) 
-                            ? I18N.get(menuItems[i].labelId) 
-                            : menuItems[i].customLabel.c_str();
+    const char* labelText =
+        (menuItems[i].labelId != (StrId)0) ? I18N.get(menuItems[i].labelId) : menuItems[i].customLabel.c_str();
 
     renderer.drawText(UI_10_FONT_ID, contentX + 20, displayY, labelText, !isSelected);
 
