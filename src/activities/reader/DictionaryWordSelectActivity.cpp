@@ -28,7 +28,6 @@ DictionaryWordSelectActivity::DictionaryWordSelectActivity(GfxRenderer& renderer
 void DictionaryWordSelectActivity::onEnter() {
   Activity::onEnter();
   extractWords();
-  mergeHyphenatedWords();
   requestUpdate();
 }
 
@@ -39,9 +38,6 @@ void DictionaryWordSelectActivity::extractWords() {
 
   int currentRowIndex = -1;
   int16_t lastY = -1;
-  int16_t normalSpaceWidth = renderer.getTextWidth(fontId, " ");
-
-  int16_t lineTargetWidth = renderer.getDisplayWidth() - (marginLeft * 2);
 
   for (const auto& element : page->elements) {
     if (!element || element->getTag() != TAG_PageLine) continue;
@@ -53,6 +49,9 @@ void DictionaryWordSelectActivity::extractWords() {
     const auto& lineWords = block->getWords();
     if (lineWords.empty()) continue;
 
+    const auto& wordXpos = block->getWordXpos();
+    const auto& wordStyles = block->getWordStyles();
+
     int16_t currentY = marginTop + line.yPos;
     if (currentY != lastY) {
       rows.push_back({currentY, {}});
@@ -60,61 +59,25 @@ void DictionaryWordSelectActivity::extractWords() {
       lastY = currentY;
     }
 
-    float actualSpaceWidth = normalSpaceWidth;
-    int totalWordsWidth = 0;
-    for (const auto& raw : lineWords) {
-      totalWordsWidth += renderer.getTextWidth(fontId, raw.c_str());
-    }
-
-    int remainingSpace = std::max(0, lineTargetWidth - line.xPos - totalWordsWidth);
-    int numSpaces = static_cast<int>(lineWords.size()) - 1;
-
-    if (numSpaces > 0) {
-      float justifiedSpace = static_cast<float>(remainingSpace) / numSpaces;
-      if (justifiedSpace >= normalSpaceWidth * 0.5f && justifiedSpace < normalSpaceWidth * 4.0f) {
-        actualSpaceWidth = justifiedSpace;
-      }
-    }
-
-    float currentX = marginLeft + line.xPos;
-
     for (size_t i = 0; i < lineWords.size(); ++i) {
       const std::string& raw = lineWords[i];
-      int16_t fullWidth = renderer.getTextWidth(fontId, raw.c_str());
 
-      std::string currentSubWord = "";
-      int16_t subWordOffsetX = 0;
+      int16_t exactX = marginLeft + line.xPos + wordXpos[i];
+      int16_t exactWidth = renderer.getTextWidth(fontId, raw.c_str(), wordStyles[i]);
 
-      for (size_t j = 0; j <= raw.length(); ++j) {
-        bool isLetter = j < raw.length() && (std::isalpha(raw[j]) || raw[j] == '\'');
-
-        if (isLetter) {
-          if (currentSubWord.empty()) {
-            std::string prefix = raw.substr(0, j);
-            subWordOffsetX = prefix.empty() ? 0 : renderer.getTextWidth(fontId, prefix.c_str());
-          }
-          currentSubWord += raw[j];
-        } else {
-          if (!currentSubWord.empty()) {
-            int16_t subWordWidth = renderer.getTextWidth(fontId, currentSubWord.c_str());
-            int wordIndex = static_cast<int>(words.size());
-
-            words.emplace_back(currentSubWord, std::round(currentX + subWordOffsetX), currentY, subWordWidth,
-                               currentRowIndex);
-            words.back().lookupText = currentSubWord;
-            rows[currentRowIndex].wordIndices.push_back(wordIndex);
-
-            currentSubWord = "";
-          }
-        }
+      std::string lookup = raw;
+      while (!lookup.empty() && std::ispunct(static_cast<unsigned char>(lookup.front()))) {
+        lookup.erase(0, 1);
+      }
+      while (!lookup.empty() && std::ispunct(static_cast<unsigned char>(lookup.back()))) {
+        lookup.pop_back();
       }
 
-      bool isLineWrapHyphen = (i == lineWords.size() - 1 && raw.back() == '-');
-      if (isLineWrapHyphen && !words.empty()) {
-        words.back().text += "-";
-      }
+      int wordIndex = static_cast<int>(words.size());
 
-      currentX += fullWidth + actualSpaceWidth;
+      words.emplace_back(raw, exactX, currentY, exactWidth, currentRowIndex);
+      words.back().lookupText = lookup;
+      rows[currentRowIndex].wordIndices.push_back(wordIndex);
     }
   }
 
@@ -222,44 +185,18 @@ void DictionaryWordSelectActivity::render(RenderLock&&) {
     int selectedWordIdx = rows[currentRow].wordIndices[currentWordInRow];
     const int lineHeight = renderer.getLineHeight(fontId);
 
-    auto drawHighlight = [&](int index) {
-      const WordInfo& word = words[index];
-      int boxX = word.screenX;
-      int boxY = word.screenY;
-      int boxWidth = word.width;
+    const WordInfo& word = words[selectedWordIdx];
+    int boxX = word.screenX;
+    int boxY = word.screenY;
+    int boxWidth = word.width;
 
-      renderer.fillRect(boxX, boxY + lineHeight + 2, boxWidth, 3, true);
-      renderer.fillRect(boxX, boxY - 3, boxWidth, 1, true);
-      renderer.fillRect(boxX - 3, boxY - 3, 2, lineHeight + 8, true);
-      renderer.fillRect(boxX + boxWidth + 1, boxY - 3, 2, lineHeight + 8, true);
-    };
-
-    drawHighlight(selectedWordIdx);
-
-    if (words[selectedWordIdx].continuationIndex != -1) {
-      drawHighlight(words[selectedWordIdx].continuationIndex);
-    }
-    if (words[selectedWordIdx].continuationOf != -1) {
-      drawHighlight(words[selectedWordIdx].continuationOf);
-    }
+    renderer.fillRect(boxX, boxY + lineHeight + 2, boxWidth, 3, true);
+    renderer.fillRect(boxX, boxY - 3, boxWidth, 1, true);
+    renderer.fillRect(boxX - 3, boxY - 3, 2, lineHeight + 8, true);
+    renderer.fillRect(boxX + boxWidth + 1, boxY - 3, 2, lineHeight + 8, true);
   }
 
   const auto labels = mappedInput.mapLabels("Cancel", "Lookup", "Up/Down", "Prev/Next");
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   renderer.displayBuffer(HalDisplay::FAST_REFRESH);
-}
-
-void DictionaryWordSelectActivity::mergeHyphenatedWords() {
-  if (words.empty()) return;
-  for (size_t i = 0; i < words.size(); ++i) {
-    if (words[i].text.back() == '-' && i + 1 < words.size()) {
-      words[i].lookupText = words[i].text.substr(0, words[i].text.size() - 1) + words[i + 1].lookupText;
-      words[i + 1].lookupText = words[i].lookupText;
-      words[i].continuationIndex = static_cast<int>(i + 1);
-      words[i + 1].continuationOf = static_cast<int>(i);
-    }
-  }
-  if (words.back().text.back() == '-' && !nextPageFirstWord.empty()) {
-    words.back().lookupText = words.back().text.substr(0, words.back().text.size() - 1) + nextPageFirstWord;
-  }
 }
