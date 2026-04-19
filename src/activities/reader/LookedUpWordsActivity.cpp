@@ -64,12 +64,24 @@ void LookedUpWordsActivity::loop() {
 
   bool needsUpdate = false;
 
+  if (confirmingDelete) {
+    if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
+      deleteSelectedWord();
+      confirmingDelete = false;
+      needsUpdate = true;
+    } else if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+      confirmingDelete = false;
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) requestUpdate();
+    return;
+  }
+
   if (mappedInput.wasReleased(MappedInputManager::Button::Up)) {
     if (selectedIndex > 0) {
       selectedIndex--;
-      if (selectedIndex < scrollOffset) {
-        scrollOffset = selectedIndex;
-      }
+      if (selectedIndex < scrollOffset) scrollOffset = selectedIndex;
       needsUpdate = true;
     }
   }
@@ -83,21 +95,15 @@ void LookedUpWordsActivity::loop() {
       needsUpdate = true;
     }
   }
+  if (mappedInput.wasReleased(MappedInputManager::Button::Right)) {
+    confirmingDelete = true;
+    needsUpdate = true;
+  }
 
-  // Handle Confirm (Short press = Lookup, Long press = Delete)
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-    if (mappedInput.getHeldTime() >= 800) {
-      // Long press: Delete word
-      deleteSelectedWord();
-      needsUpdate = true;
-    } else {
-      // Short press: Lookup word
-      // Note: Re-using the same fontId as the reader settings might require passing it down,
-      // but UI_12_FONT_ID works as a safe default for definition reading.
-      startActivityForResult(std::make_unique<DictionaryDefinitionActivity>(renderer, mappedInput, words[selectedIndex],
-                                                                            cachePath, UI_12_FONT_ID),
-                             [this](const ActivityResult& result) { requestUpdate(); });
-    }
+    startActivityForResult(std::make_unique<DictionaryDefinitionActivity>(renderer, mappedInput, words[selectedIndex],
+                                                                          cachePath, UI_12_FONT_ID),
+                           [this](const ActivityResult& result) { requestUpdate(); });
   }
 
   if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
@@ -151,10 +157,27 @@ void LookedUpWordsActivity::render(RenderLock&&) {
     }
   }
 
-  // Footer Hints
-  // We assume you might need to add "Hold: Del" to your translations, using literal string for now
-  const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_HINT_SEL_DEL), tr(STR_UP_DOWN), "");
-  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+  if (confirmingDelete) {
+    int pw = 340;
+    int ph = 120;
+    int px = (renderer.getScreenWidth() - pw) / 2;
+    int py = (renderer.getScreenHeight() - ph) / 2;
+
+    renderer.fillRect(px, py, pw, ph, false);
+    renderer.drawRect(px, py, pw, ph, true);
+    renderer.drawRect(px + 1, py + 1, pw - 2, ph - 2, true);
+
+    char buf[128];
+    snprintf(buf, sizeof(buf), "%s '%s'?", tr(STR_DELETE_CONFIRM), words[selectedIndex].c_str());
+
+    renderer.drawCenteredText(UI_12_FONT_ID, py + 45, buf, true, EpdFontFamily::BOLD);
+
+    const auto labels = mappedInput.mapLabels(tr(STR_NO), tr(STR_YES), "", "");
+    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+  } else {
+    const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_LOOKUP), "", tr(STR_DELETE));
+    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+  }
 
   renderer.displayBuffer(HalDisplay::FAST_REFRESH);
 }

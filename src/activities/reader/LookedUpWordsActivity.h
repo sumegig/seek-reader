@@ -22,6 +22,7 @@ class LookedUpWordsActivity final : public Activity {
   int linesPerPage = 0;
 
   bool isLoading = true;
+  bool confirmingDelete = false;
 
   void loadHistory();
   void deleteSelectedWord();
