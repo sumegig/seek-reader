@@ -31,6 +31,7 @@ My primary goal with SEEK is to build a highly customizable, personalized readin
     * **Deep Sleep Protection**: Forced session saving during the power-off sequence to prevent data loss even if the device is not manually exited.
     * **Session Guarding**: Smart 3-minute threshold for session tracking to avoid corrupting stats with short wake-up cycles.
     * **Binary Migration**: Seamless v4/v5 to v6 data migration engine for the `stats.bin` database.
+* **Offline Dictionary Engine:** Pixel-perfect word selection directly from EPUB files, StarDict format support, Levenshtein-based "Did you mean?" suggestions, and a memory-safe Lookup History.
 * **More to come:** I am actively shaping the firmware, so expect more personalized features, custom sleep screens, and UI overhauls.
 
 ## Features & Usage
@@ -46,6 +47,8 @@ My primary goal with SEEK is to build a highly customizable, personalized readin
 - [x] Configurable font, layout, and display options
 - [x] Multiple Home UI Themes (Classic, Lyra, Recent6 Grid)
 - [x] Screen rotation (4 orientations)
+- [x] Offline Dictionary (StarDict format) with Smart Suggestions
+- [x] Lookup History with memory-safe deletion
 
 See the [USER_GUIDE.md](./USER_GUIDE.md) for basic operating instructions.
 

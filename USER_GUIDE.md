@@ -149,6 +149,8 @@ The Settings screen allows you to configure the device's behavior. There are a f
   - "Classic" - The original theme
   - "Lyra" - The new theme featuring rounded elements and menu icons
   - "Lyra Extended" - Lyra, but displays 3 books instead of 1 on the **[Home Screen](#31-home-screen)**
+  - "Recent6" - Pretty much a Lyra, but this time with 2 rows of 3 books
+  
 - **Sunlight Fading Fix**: Configure whether to enable a software-fix for the issue where white X4 models may fade when used in direct sunlight:
   - "OFF" (default) - Disable the fix
   - "ON" - Enable the fix
@@ -308,7 +310,14 @@ This feature can be disabled in the **[Controls Settings](https://www.google.com
 - **Return to Browse Files:** Press and hold the **Back** button to close the book and return to the **[Browse Files](https://www.google.com/search?q=%2333-browse-files-screen)** screen.
     
 - **Chapter Menu:** Press **Confirm** to open the **[Table of Contents/Chapter Selection](https://www.google.com/search?q=%235-chapter-selection-screen)** screen.
-    
+
+### Offline Dictionary & Lookup History
+
+SEEK supports offline dictionary lookups directly while reading. To use this feature, you must place standard StarDict dictionary files (`dictionary.dict` and `dictionary.idx`) in the root directory of your SD card.
+
+- **Lookup a Word:** While reading, press **Confirm** to open the reader menu and select **Lookup**. Use the directional buttons to move the highlight box to the desired word, then press **Confirm** to view its definition.
+- **Smart Suggestions:** If an exact match for a word is not found in the dictionary, pressing **Confirm** will display a "Did you mean?" list of similarly spelled words.
+- **Lookup History:** Access the **Lookup History** from the reader menu to review previously searched words. You can press **Confirm** to view their definitions again, or press the **Right** button to delete them from the history (a confirmation prompt will appear).
 
 ### Supported Languages
 
