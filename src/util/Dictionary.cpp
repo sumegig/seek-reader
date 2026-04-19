@@ -41,6 +41,7 @@ std::vector<std::string> Dictionary::getStemVariants(const std::string& word) {
   // Simple English stemming heuristics
   if (word.back() == 's') {
     variants.push_back(word.substr(0, word.length() - 1));
+
     if (word.substr(word.length() - 2) == "es") {
       variants.push_back(word.substr(0, word.length() - 2));
     }
