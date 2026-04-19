@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "CrossPointSettings.h"
+#include "DictionarySuggestionsActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/Dictionary.h"
@@ -108,9 +109,26 @@ void DictionaryDefinitionActivity::loop() {
       needsUpdate = true;
     }
   }
+  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
+    if (notFound) {
+      // If word not found, pressing Confirm opens the Suggestions list
+      startActivityForResult(
+          std::make_unique<DictionarySuggestionsActivity>(renderer, mappedInput, targetWord, cachePath),
+          [this](const ActivityResult& result) {
+            // When returning from suggestions, we finish the definition view too
+            ActivityResult fwResult;
+            setResult(std::move(fwResult));
+            finish();
+          });
+      return;
+    } else {
+      ActivityResult result;
+      setResult(std::move(result));
+      finish();
+    }
+  }
 
-  if (mappedInput.wasReleased(MappedInputManager::Button::Back) ||
-      mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
+  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
     ActivityResult result;
     setResult(std::move(result));
     finish();
@@ -130,6 +148,9 @@ void DictionaryDefinitionActivity::render(RenderLock&&) {
   } else if (notFound) {
     std::string notFoundMsg = std::string(tr(STR_WORD_NOT_FOUND)) + targetWord;
     renderer.drawText(fontId, margin, currentY, notFoundMsg.c_str());
+
+    currentY += renderer.getLineHeight(fontId) * 2;
+    renderer.drawText(fontId, margin, currentY, tr(STR_PRESS_CONFIRM_SUGGESTIONS));
   } else {
     renderer.drawText(UI_12_FONT_ID, margin, currentY, targetWord.c_str(), EpdFontFamily::BOLD);
 

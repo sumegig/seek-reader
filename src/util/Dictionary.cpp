@@ -326,7 +326,7 @@ std::vector<std::string> Dictionary::findSimilar(const std::string& rawWord, int
 
 void Dictionary::freeMemory() {
   sparseOffsets.clear();
-  sparseOffsets.shrink_to_fit(); 
+  sparseOffsets.shrink_to_fit();
   indexLoaded = false;
   totalWords = 0;
 }
