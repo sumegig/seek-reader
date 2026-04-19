@@ -25,6 +25,8 @@ class Dictionary {
   // Finds similar words using Levenshtein distance (Did you mean?)
   static std::vector<std::string> findSimilar(const std::string& word, int maxResults);
 
+  static void freeMemory();
+
  private:
   static constexpr int SPARSE_INTERVAL = 512;
   static std::vector<uint32_t> sparseOffsets;

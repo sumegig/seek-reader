@@ -23,6 +23,14 @@ void DictionaryDefinitionActivity::onEnter() {
   performLookup();
 }
 
+void DictionaryDefinitionActivity::onExit() {
+  Activity::onExit();
+  wrappedLines.clear();
+  wrappedLines.shrink_to_fit();
+  definition.clear();
+  definition.shrink_to_fit();
+}
+
 void DictionaryDefinitionActivity::performLookup() {
   definition = Dictionary::lookup(targetWord);
 
@@ -36,6 +44,9 @@ void DictionaryDefinitionActivity::performLookup() {
       }
     }
   }
+
+  // FIX: As soon as we have the definition, immediately return the RAM to the system!
+  Dictionary::freeMemory();
 
   if (definition.empty()) {
     notFound = true;

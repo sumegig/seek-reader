@@ -11,6 +11,7 @@ class DictionaryDefinitionActivity final : public Activity {
                                         std::string cachePath, int fontId);
 
   void onEnter() override;
+  void onExit() override;
   void loop() override;
   void render(RenderLock&&) override;
 
