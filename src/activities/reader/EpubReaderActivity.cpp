@@ -1301,15 +1301,13 @@ void EpubReaderActivity::applyQuickSettings() {
 
   {
     RenderLock lock(*this);
-    // Discarding the section forces the Epub engine to rebuild the chapter
-    // with the new font sizes, margins, and line spacing.
-    section.reset();
 
-    pagesUntilFullRefresh = 0;
-
-    // Fallback: Retain reading progress across reflow
     cachedSpineIndex = currentSpineIndex;
-    if (section) cachedChapterTotalPageCount = section->pageCount;
+    if (section) {
+      cachedChapterTotalPageCount = section->pageCount;
+    }
+    section.reset();
+    pagesUntilFullRefresh = 0;
   }
 
   // Trigger a full screen render to apply the heavy layout changes
@@ -1321,7 +1319,7 @@ void EpubReaderActivity::renderQuickSettingsOverlay() {
   const int h = renderer.getScreenHeight();
 
   // tallewr menu (300px)
-  const int overlayH = 300;
+  const int overlayH = 315;
   const int overlayY = h - overlayH;
 
   // Blank out the background
@@ -1394,8 +1392,8 @@ void EpubReaderActivity::renderQuickSettingsOverlay() {
   }
 
   // --- DRAW BUTTON HINTS ---
-  const char* hintConfirm = (qsState == QuickSettingsState::ITEM_FOCUSED) ? tr(STR_CONFIRM) : tr(STR_SELECT);
-  const auto labels = mappedInput.mapLabels(tr(STR_BACK), hintConfirm, tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+  const char* hintConfirm = (qsState == QuickSettingsState::ITEM_FOCUSED) ? tr(STR_CONFIRM) : "";
+  const auto labels = mappedInput.mapLabels(tr(STR_BACK), hintConfirm, tr(STR_DIR_LEFT), tr(STR_DIR_RIGHT));
 
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 }

@@ -43,18 +43,18 @@ class EpubReaderActivity final : public Activity {
   // Local state struct to bypass the CrossPointSettings Singleton private constructor.
   // Holds only the specific properties modified by the Quick Settings menu.
   struct TempQuickSettings {
-    uint8_t fontFamily;
-    uint8_t fontSize;
-    uint8_t lineSpacing;
-    uint8_t screenMargin;
-    uint8_t paragraphAlignment;
-    uint8_t embeddedStyle;
-    uint8_t hyphenationEnabled;
-    uint8_t extraParagraphSpacing;
-    uint8_t textAntiAliasing;
-    uint8_t sideButtonLayout;
-    uint8_t longPressChapterSkip;
-    uint8_t shortPwrBtn;
+    uint8_t fontFamily = 0;
+    uint8_t fontSize = 0;
+    uint8_t lineSpacing = 0;
+    uint8_t screenMargin = 0;
+    uint8_t paragraphAlignment = 0;
+    uint8_t embeddedStyle = 0;
+    uint8_t hyphenationEnabled = 0;
+    uint8_t extraParagraphSpacing = 0;
+    uint8_t textAntiAliasing = 0;
+    uint8_t sideButtonLayout = 0;
+    uint8_t longPressChapterSkip = 0;
+    uint8_t shortPwrBtn = 0;
   };
 
   TempQuickSettings tempSettings;
