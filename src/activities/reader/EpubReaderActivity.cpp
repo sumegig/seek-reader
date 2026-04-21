@@ -1236,13 +1236,12 @@ void EpubReaderActivity::handleQuickSettingsInput() {
     } else if (mappedInput.wasReleased(MappedInputManager::Button::Up)) {
       qsState = QuickSettingsState::ITEM_FOCUSED;
       qsSelectedItem = itemCount - 1;
-      qsScrollOffset = std::max(0, qsSelectedItem - 3);  // Keep within view
+      // MAX_VISIBLE = 5 miatt itt a láthatósági ablak mérete 4 (0-tól indexelve)
+      qsScrollOffset = std::max(0, qsSelectedItem - 4);
       requestUpdate();
     } else if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
       qsState = QuickSettingsState::CLOSED;  // Discard changes
-
-      pagesUntilFullRefresh = 0;
-
+      pagesUntilFullRefresh = 0;             // Kényszerített tiszta frissítés kilépéskor
       requestUpdate();
     }
   } else if (qsState == QuickSettingsState::ITEM_FOCUSED) {
@@ -1261,8 +1260,8 @@ void EpubReaderActivity::handleQuickSettingsInput() {
       if (qsSelectedItem >= itemCount) {
         qsSelectedItem = 0;  // Wrap around to top
         qsScrollOffset = 0;
-      } else if (qsSelectedItem > qsScrollOffset + 3) {
-        qsScrollOffset = qsSelectedItem - 3;  // Keep visible
+      } else if (qsSelectedItem > qsScrollOffset + 4) {  // MAX_VISIBLE - 1
+        qsScrollOffset = qsSelectedItem - 4;
       }
       requestUpdate();
     } else if (mappedInput.wasReleased(MappedInputManager::Button::Left)) {
@@ -1321,19 +1320,18 @@ void EpubReaderActivity::renderQuickSettingsOverlay() {
   const int w = renderer.getScreenWidth();
   const int h = renderer.getScreenHeight();
 
-  // Dynamic bottom overlay sizing (approx bottom 45% of screen)
-  const int overlayH = 260;
+  // tallewr menu (300px)
+  const int overlayH = 300;
   const int overlayY = h - overlayH;
 
-  // Blank out the background (false means white to clear text behind it)
+  // Blank out the background
   renderer.fillRect(0, overlayY, w, overlayH, false);
-  // Top Border for visual separation
+  // Top Border
   renderer.fillRect(0, overlayY, w, 2, true);
 
   // --- DRAW TABS ---
   const int tabY = overlayY + 15;
 
-  // OPTIMIZATION: Use const char* instead of std::string to avoid heap allocation
   const char* t1 = tr(STR_CAT_READER);
   const char* t2 = tr(STR_CAT_CONTROLS);
 
@@ -1345,11 +1343,10 @@ void EpubReaderActivity::renderQuickSettingsOverlay() {
 
   bool isReaderActive = (qsSelectedTab == 0);
 
-  // Highlight active tab if TAB_FOCUSED
   if (qsState == QuickSettingsState::TAB_FOCUSED && isReaderActive) {
-    renderer.fillRect(t1X - 10, tabY - 5, t1W + 20, 26, true);
+    renderer.fillRect(t1X - 15, tabY - 3, t1W + 30, 35, true);
   } else if (qsState == QuickSettingsState::TAB_FOCUSED && !isReaderActive) {
-    renderer.fillRect(t2X - 10, tabY - 5, t2W + 20, 26, true);
+    renderer.fillRect(t2X - 15, tabY - 3, t2W + 30, 35, true);
   }
 
   renderer.drawText(UI_12_FONT_ID, t1X, tabY, t1, !(qsState == QuickSettingsState::TAB_FOCUSED && isReaderActive),
@@ -1362,13 +1359,13 @@ void EpubReaderActivity::renderQuickSettingsOverlay() {
 
   // --- DRAW ITEMS ---
   const int listY = tabY + 45;
-  const int rowH = 35;
-  const int maxVisible = 4;  // Max rows visible at once to leave room for ButtonHints at bottom
+  // rows (38px) & 5 items ---
+  const int rowH = 38;
+  const int maxVisible = 5;
 
   int itemCount = getQsItemCount(qsSelectedTab);
   int endIdx = std::min(qsScrollOffset + maxVisible, itemCount);
 
-  // Stack buffers for safe string formatting
   char valBuf[32];
   char finalValBuf[64];
 
@@ -1376,18 +1373,14 @@ void EpubReaderActivity::renderQuickSettingsOverlay() {
     int rowY = listY + ((i - qsScrollOffset) * rowH);
     bool isFocused = (qsState == QuickSettingsState::ITEM_FOCUSED && qsSelectedItem == i);
 
-    // Draw focus background highlight
     if (isFocused) {
-      renderer.fillRect(10, rowY - 5, w - 20, rowH, true);
+      renderer.fillRect(10, rowY - 5, w - 20, rowH - 4, true);
     }
 
-    // Draw Key (Left aligned)
     renderer.drawText(UI_10_FONT_ID, 25, rowY, getQsItemName(qsSelectedTab, i), !isFocused);
 
-    // Draw Value (Right aligned)
     const char* valStr = getQsItemValue(qsSelectedTab, i, valBuf, sizeof(valBuf));
 
-    // OPTIMIZATION: Format arrow indicators directly into a stack buffer instead of concatenating std::strings
     if (isFocused) {
       snprintf(finalValBuf, sizeof(finalValBuf), "<  %s  >", valStr);
     } else {
