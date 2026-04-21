@@ -33,10 +33,30 @@ void DictionaryWordSelectActivity::onEnter() {
   requestUpdate();
 }
 
+void DictionaryWordSelectActivity::onExit() {
+  Activity::onExit();
+
+  // FIX: Aggressively free all resources and defragment heap before returning to the reader
+  words.clear();
+  words.shrink_to_fit();
+
+  rows.clear();
+  rows.shrink_to_fit();
+
+  // Explicitly reset the unique_ptr to free the parsed DOM memory immediately
+  page.reset();
+}
+
 void DictionaryWordSelectActivity::extractWords() {
   words.clear();
   rows.clear();
   if (!page) return;
+
+  // FIX: Pre-allocate vectors to prevent massive heap fragmentation.
+  // An average screen has ~250-300 words. Vector reallocation without reserve()
+  // creates a "Swiss cheese" heap, eventually starving the E-ink renderer.
+  words.reserve(350);
+  rows.reserve(40);
 
   int currentRowIndex = -1;
   int16_t lastY = -1;

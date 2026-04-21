@@ -18,6 +18,13 @@ void LookedUpWordsActivity::onEnter() {
   requestUpdate();
 }
 
+void LookedUpWordsActivity::onExit() {
+  Activity::onExit();
+  // FIX: Ensure historical data vectors are fully wiped from memory on exit
+  words.clear();
+  words.shrink_to_fit();
+}
+
 void LookedUpWordsActivity::loadHistory() {
   words = LookupHistory::load(cachePath);
 

@@ -36,6 +36,7 @@ class DictionaryWordSelectActivity final : public Activity {
 
   void onEnter() override;
   void loop() override;
+  void onExit() override;
   void render(RenderLock&&) override;
 
  private:

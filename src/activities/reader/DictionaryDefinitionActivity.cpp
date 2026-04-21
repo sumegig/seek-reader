@@ -62,6 +62,10 @@ void DictionaryDefinitionActivity::performLookup() {
 
 void DictionaryDefinitionActivity::wrapText() {
   wrappedLines.clear();
+
+  // FIX: Pre-allocate memory to avoid heap fragmentation during line wrapping
+  wrappedLines.reserve(50);
+  
   if (definition.empty()) return;
 
   const int margin = 20;

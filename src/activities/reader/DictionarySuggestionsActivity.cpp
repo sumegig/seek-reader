@@ -19,9 +19,21 @@ void DictionarySuggestionsActivity::onEnter() {
   requestUpdate();
 }
 
+void DictionarySuggestionsActivity::onExit() {
+  Activity::onExit();
+  // FIX: Explicitly clear and shrink vector to free RAM immediately upon exiting
+  suggestions.clear();
+  suggestions.shrink_to_fit();
+}
+
 void DictionarySuggestionsActivity::findSuggestions() {
   // Limit to top 5 closest matches to prevent memory bloat and long lists
   suggestions = Dictionary::findSimilar(targetWord, 5);
+
+  // FIX: The dictionary index is loaded into RAM here.
+  // We MUST explicitly release it back to the system immediately!
+  Dictionary::freeMemory();
+
   isLoading = false;
   requestUpdate();
 }
