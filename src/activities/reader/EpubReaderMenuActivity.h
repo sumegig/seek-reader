@@ -20,8 +20,9 @@ class EpubReaderMenuActivity final : public Activity {
     GO_HOME,
     SYNC,
     DELETE_CACHE,
-    LOOKUP,          // Added for Dictionary functionality
-    LOOKED_UP_WORDS  // Added for Dictionary history
+    LOOKUP,           // Added for Dictionary functionality
+    LOOKED_UP_WORDS,  // Added for Dictionary history
+    QUICK_SETTINGS    // <-- Triggers the in-activity overlay
   };
 
   struct MenuItem {

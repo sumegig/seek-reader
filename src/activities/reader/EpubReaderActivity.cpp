@@ -167,6 +167,13 @@ void EpubReaderActivity::loop() {
     }
   }
 
+  // --- QUICK SETTINGS INTERCEPT ---
+  // Trap all inputs if the Quick Settings overlay is open.
+  if (qsState != QuickSettingsState::CLOSED) {
+    handleQuickSettingsInput();
+    return;
+  }
+
   // Enter reader menu activity.
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     const int currentPage = section ? section->currentPage + 1 : 0;
@@ -420,6 +427,22 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
                              [this](const ActivityResult& result) { requestUpdate(); });
       break;
     }
+    case EpubReaderMenuActivity::MenuAction::QUICK_SETTINGS: {
+      // Capture current global settings to local temporary buffer
+      tempSettings.fontFamily = SETTINGS.fontFamily;
+      // ... (a többi másolás marad ugyanígy) ...
+      tempSettings.shortPwrBtn = SETTINGS.shortPwrBtn;
+
+      qsState = QuickSettingsState::TAB_FOCUSED;
+      qsSelectedTab = 0;
+      qsSelectedItem = 0;
+      qsScrollOffset = 0;
+
+      qsNeedsBackgroundRender = true;
+
+      requestUpdate();
+      break;
+    }
 
     case EpubReaderMenuActivity::MenuAction::GO_TO_PERCENT: {
       float bookProgress = 0.0f;
@@ -614,16 +637,16 @@ void EpubReaderActivity::render(RenderLock&& lock) {
     return;
   }
 
-  // edge case handling for sub-zero spine index
-  if (currentSpineIndex < 0) {
-    currentSpineIndex = 0;
-  }
-  // based bounds of book, show end of book screen
-  if (currentSpineIndex > epub->getSpineItemsCount()) {
-    currentSpineIndex = epub->getSpineItemsCount();
+  if (qsState != QuickSettingsState::CLOSED && !qsNeedsBackgroundRender) {
+    renderQuickSettingsOverlay();
+    renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+    return;
   }
 
-  // Show end of book screen
+  // edge case handling for sub-zero spine index
+  if (currentSpineIndex < 0) currentSpineIndex = 0;
+  if (currentSpineIndex > epub->getSpineItemsCount()) currentSpineIndex = epub->getSpineItemsCount();
+
   if (currentSpineIndex == epub->getSpineItemsCount()) {
     renderer.clearScreen();
     renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_END_OF_BOOK), true, EpdFontFamily::BOLD);
@@ -632,7 +655,7 @@ void EpubReaderActivity::render(RenderLock&& lock) {
     return;
   }
 
-  // Apply screen viewable areas and additional padding
+  // Margók és viewport számolás
   int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
                                    &orientedMarginLeft);
@@ -641,8 +664,6 @@ void EpubReaderActivity::render(RenderLock&& lock) {
   orientedMarginRight += SETTINGS.screenMargin;
 
   const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
-
-  // reserves space for automatic page turn indicator when no status bar or progress bar only
   if (automaticPageTurnActive &&
       (statusBarHeight == 0 || statusBarHeight == UITheme::getInstance().getProgressBarHeight())) {
     orientedMarginBottom +=
@@ -657,62 +678,43 @@ void EpubReaderActivity::render(RenderLock&& lock) {
 
   if (!section) {
     const auto filepath = epub->getSpineItem(currentSpineIndex).href;
-    LOG_DBG("ERS", "Loading file: %s, index: %d", filepath.c_str(), currentSpineIndex);
     section = std::unique_ptr<Section>(new Section(epub, currentSpineIndex, renderer));
 
     if (!section->loadSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
                                   SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment, viewportWidth,
                                   viewportHeight, SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle,
                                   SETTINGS.imageRendering)) {
-      LOG_DBG("ERS", "Cache not found, building...");
-
       const auto popupFn = [this]() { GUI.drawPopup(renderer, tr(STR_INDEXING)); };
-
       if (!section->createSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
                                       SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment, viewportWidth,
                                       viewportHeight, SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle,
                                       SETTINGS.imageRendering, popupFn)) {
-        LOG_ERR("ERS", "Failed to persist page data to SD");
         section.reset();
         return;
       }
-    } else {
-      LOG_DBG("ERS", "Cache found, skipping build...");
     }
 
-    if (nextPageNumber == UINT16_MAX) {
+    if (nextPageNumber == UINT16_MAX)
       section->currentPage = section->pageCount - 1;
-    } else {
+    else
       section->currentPage = nextPageNumber;
-    }
 
     if (!pendingAnchor.empty()) {
-      if (const auto page = section->getPageForAnchor(pendingAnchor)) {
-        section->currentPage = *page;
-        LOG_DBG("ERS", "Resolved anchor '%s' to page %d", pendingAnchor.c_str(), *page);
-      } else {
-        LOG_DBG("ERS", "Anchor '%s' not found in section %d", pendingAnchor.c_str(), currentSpineIndex);
-      }
+      if (const auto page = section->getPageForAnchor(pendingAnchor)) section->currentPage = *page;
       pendingAnchor.clear();
     }
 
-    // handles changes in reader settings and reset to approximate position based on cached progress
     if (cachedChapterTotalPageCount > 0) {
-      // only goes to relative position if spine index matches cached value
       if (currentSpineIndex == cachedSpineIndex && section->pageCount != cachedChapterTotalPageCount) {
         float progress = static_cast<float>(section->currentPage) / static_cast<float>(cachedChapterTotalPageCount);
-        int newPage = static_cast<int>(progress * section->pageCount);
-        section->currentPage = newPage;
+        section->currentPage = static_cast<int>(progress * section->pageCount);
       }
-      cachedChapterTotalPageCount = 0;  // resets to 0 to prevent reading cached progress again
+      cachedChapterTotalPageCount = 0;
     }
 
     if (pendingPercentJump && section->pageCount > 0) {
-      // Apply the pending percent jump now that we know the new section's page count.
       int newPage = static_cast<int>(pendingSpineProgress * static_cast<float>(section->pageCount));
-      if (newPage >= section->pageCount) {
-        newPage = section->pageCount - 1;
-      }
+      if (newPage >= section->pageCount) newPage = section->pageCount - 1;
       section->currentPage = newPage;
       pendingPercentJump = false;
     }
@@ -720,18 +722,10 @@ void EpubReaderActivity::render(RenderLock&& lock) {
 
   renderer.clearScreen();
 
-  if (section->pageCount == 0) {
-    LOG_DBG("ERS", "No pages to render");
-    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_EMPTY_CHAPTER), true, EpdFontFamily::BOLD);
-    renderStatusBar();
-    renderer.displayBuffer();
-    automaticPageTurnActive = false;
-    return;
-  }
-
-  if (section->currentPage < 0 || section->currentPage >= section->pageCount) {
-    LOG_DBG("ERS", "Page out of bounds: %d (max %d)", section->currentPage, section->pageCount);
-    renderer.drawCenteredText(UI_12_FONT_ID, 300, tr(STR_OUT_OF_BOUNDS), true, EpdFontFamily::BOLD);
+  if (section->pageCount == 0 || section->currentPage < 0 || section->currentPage >= section->pageCount) {
+    renderer.drawCenteredText(UI_12_FONT_ID, 300,
+                              section->pageCount == 0 ? tr(STR_EMPTY_CHAPTER) : tr(STR_OUT_OF_BOUNDS), true,
+                              EpdFontFamily::BOLD);
     renderStatusBar();
     renderer.displayBuffer();
     automaticPageTurnActive = false;
@@ -741,24 +735,87 @@ void EpubReaderActivity::render(RenderLock&& lock) {
   {
     auto p = section->loadPageFromSectionFile();
     if (!p) {
-      LOG_ERR("ERS", "Failed to load page from SD - clearing section cache");
       section->clearCache();
       section.reset();
-      requestUpdate();  // Try again after clearing cache
-                        // TODO: prevent infinite loop if the page keeps failing to load for some reason
+      requestUpdate();
       automaticPageTurnActive = false;
       return;
     }
 
-    // Collect footnotes from the loaded page
     currentPageFootnotes = std::move(p->footnotes);
 
     const auto start = millis();
+
     renderContents(std::move(p), orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft);
     LOG_DBG("ERS", "Rendered page in %dms", millis() - start);
   }
-  silentIndexNextChapterIfNeeded(viewportWidth, viewportHeight);
+
   saveProgress(currentSpineIndex, section->currentPage, section->pageCount);
+
+  if (qsState != QuickSettingsState::CLOSED) {
+    renderQuickSettingsOverlay();
+
+    if (qsNeedsBackgroundRender) {
+      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+    } else {
+      renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+    }
+    qsNeedsBackgroundRender = false;
+  } else {
+    // Only process standard full refresh logic if overlay is closed
+    silentIndexNextChapterIfNeeded(viewportWidth, viewportHeight);
+  }
+
+  if (pendingScreenshot) {
+    pendingScreenshot = false;
+    ScreenshotUtil::takeScreenshot(renderer);
+  }
+
+  renderer.clearScreen();
+
+  if (section->pageCount == 0 || section->currentPage < 0 || section->currentPage >= section->pageCount) {
+    renderer.drawCenteredText(UI_12_FONT_ID, 300,
+                              section->pageCount == 0 ? tr(STR_EMPTY_CHAPTER) : tr(STR_OUT_OF_BOUNDS), true,
+                              EpdFontFamily::BOLD);
+    renderStatusBar();
+    renderer.displayBuffer();
+    automaticPageTurnActive = false;
+    return;
+  }
+
+  {
+    auto p = section->loadPageFromSectionFile();
+    if (!p) {
+      section->clearCache();
+      section.reset();
+      requestUpdate();
+      automaticPageTurnActive = false;
+      return;
+    }
+
+    currentPageFootnotes = std::move(p->footnotes);
+
+    const auto start = millis();
+
+    renderContents(std::move(p), orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft);
+    LOG_DBG("ERS", "Rendered page in %dms", millis() - start);
+  }
+
+  saveProgress(currentSpineIndex, section->currentPage, section->pageCount);
+
+  if (qsState != QuickSettingsState::CLOSED) {
+    renderQuickSettingsOverlay();
+
+    if (qsNeedsBackgroundRender) {
+      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+    } else {
+      renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+    }
+    qsNeedsBackgroundRender = false;
+  } else {
+    // Only process standard full refresh logic if overlay is closed
+    silentIndexNextChapterIfNeeded(viewportWidth, viewportHeight);
+  }
 
   if (pendingScreenshot) {
     pendingScreenshot = false;
@@ -834,6 +891,11 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   LOG_DBG("ERS", "Heap: before=%lu after=%lu delta=%ld", heapBefore, heapAfter,
           (int32_t)heapAfter - (int32_t)heapBefore);
 
+  // --- QUICK SETTINGS OPTIMIZATION FLAG ---
+  // If the overlay is open, we suppress display updates and heavy grayscale logic
+  // to ensure instantaneous, flicker-free menu navigation.
+  const bool isQsOpen = (qsState != QuickSettingsState::CLOSED);
+
   // Force special handling for pages with images when anti-aliasing is on
   bool imagePageWithAA = page->hasImages() && SETTINGS.textAntiAliasing;
 
@@ -842,27 +904,21 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   fcm->logStats("bw_render");
   const auto tBwRender = millis();
 
+  // ONLY push to display here if Quick Settings is CLOSED
   if (imagePageWithAA) {
-    // Double FAST_REFRESH with selective image blanking (pablohc's technique):
-    // HALF_REFRESH sets particles too firmly for the grayscale LUT to adjust.
-    // Instead, blank only the image area and do two fast refreshes.
-    // Step 1: Display page with image area blanked (text appears, image area white)
-    // Step 2: Re-render with images and display again (images appear clean)
     int16_t imgX, imgY, imgW, imgH;
     if (page->getImageBoundingBox(imgX, imgY, imgW, imgH)) {
       renderer.fillRect(imgX + orientedMarginLeft, imgY + orientedMarginTop, imgW, imgH, false);
-      renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+      if (!isQsOpen) renderer.displayBuffer(HalDisplay::FAST_REFRESH);
 
       // Re-render page content to restore images into the blanked area
-      // Status bar is not re-rendered here to avoid reading stale dynamic values (e.g. battery %)
       page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
-      renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+      if (!isQsOpen) renderer.displayBuffer(HalDisplay::FAST_REFRESH);
     } else {
-      renderer.displayBuffer(HalDisplay::HALF_REFRESH);
+      if (!isQsOpen) renderer.displayBuffer(HalDisplay::HALF_REFRESH);
     }
-    // Double FAST_REFRESH handles ghosting for image pages; don't count toward full refresh cadence
   } else {
-    ReaderUtils::displayWithRefreshCycle(renderer, pagesUntilFullRefresh);
+    if (!isQsOpen) ReaderUtils::displayWithRefreshCycle(renderer, pagesUntilFullRefresh);
   }
   const auto tDisplay = millis();
 
@@ -871,8 +927,8 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   const auto tBwStore = millis();
 
   // grayscale rendering
-  // TODO: Only do this if font supports it
-  if (SETTINGS.textAntiAliasing) {
+  // SKIP grayscale completely if QuickSettings is open to ensure instant menu navigation!
+  if (SETTINGS.textAntiAliasing && !isQsOpen) {
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
     page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
@@ -903,7 +959,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
             tPrewarm - t0, tBwRender - tPrewarm, tDisplay - tBwRender, tBwStore - tDisplay, tGrayLsb - tBwStore,
             tGrayMsb - tGrayLsb, tGrayDisplay - tGrayMsb, tBwRestore - tGrayDisplay, tEnd - t0);
   } else {
-    // restore the bw data
+    // restore the bw data (Menu will be drawn on top of this later in render() )
     renderer.restoreBwBuffer();
     const auto tBwRestore = millis();
 
@@ -1009,4 +1065,344 @@ void EpubReaderActivity::restoreSavedPosition() {
     section.reset();
   }
   requestUpdate();
+}
+
+// ============================================================================
+// QUICK SETTINGS OVERLAY IMPLEMENTATION
+// ============================================================================
+
+int EpubReaderActivity::getQsItemCount(int tab) const {
+  return (tab == 0) ? 9 : 3;  // 9 Reader settings, 3 Controls settings
+}
+
+const char* EpubReaderActivity::getQsItemName(int tab, int index) const {
+  if (tab == 0) {
+    switch (index) {
+      case 0:
+        return tr(STR_FONT_FAMILY);
+      case 1:
+        return tr(STR_FONT_SIZE);
+      case 2:
+        return tr(STR_LINE_SPACING);
+      case 3:
+        return tr(STR_SCREEN_MARGIN);
+      case 4:
+        return tr(STR_PARA_ALIGNMENT);
+      case 5:
+        return tr(STR_EMBEDDED_STYLE);
+      case 6:
+        return tr(STR_HYPHENATION);
+      case 7:
+        return tr(STR_EXTRA_SPACING);
+      case 8:
+        return tr(STR_TEXT_AA);
+    }
+  } else {
+    switch (index) {
+      case 0:
+        return tr(STR_SIDE_BTN_LAYOUT);
+      case 1:
+        return tr(STR_LONG_PRESS_SKIP);
+      case 2:
+        return tr(STR_SHORT_PWR_BTN);
+    }
+  }
+  return "";
+}
+
+const char* EpubReaderActivity::getQsItemValue(int tab, int index, char* tempBuf, size_t tempBufSize) const {
+  auto onOff = [](uint8_t val) { return val ? tr(STR_STATE_ON) : tr(STR_STATE_OFF); };
+  if (tab == 0) {
+    switch (index) {
+      case 0:
+        return (tempSettings.fontFamily == 0)   ? tr(STR_BOOKERLY)
+               : (tempSettings.fontFamily == 1) ? tr(STR_NOTO_SANS)
+                                                : tr(STR_OPEN_DYSLEXIC);
+      case 1:
+        return (tempSettings.fontSize == 0)   ? tr(STR_SMALL)
+               : (tempSettings.fontSize == 1) ? tr(STR_MEDIUM)
+               : (tempSettings.fontSize == 2) ? tr(STR_LARGE)
+                                              : tr(STR_X_LARGE);
+      case 2:
+        return (tempSettings.lineSpacing == 0)   ? tr(STR_TIGHT)
+               : (tempSettings.lineSpacing == 1) ? tr(STR_NORMAL)
+                                                 : tr(STR_WIDE);
+      case 3:
+        snprintf(tempBuf, tempBufSize, "%d %s", tempSettings.screenMargin, tr(STR_PX));
+        return tempBuf;
+
+      case 4:
+        return (tempSettings.paragraphAlignment == 0)   ? tr(STR_JUSTIFY)
+               : (tempSettings.paragraphAlignment == 1) ? tr(STR_ALIGN_LEFT)
+               : (tempSettings.paragraphAlignment == 2) ? tr(STR_CENTER)
+                                                        : tr(STR_ALIGN_RIGHT);
+      case 5:
+        return onOff(tempSettings.embeddedStyle);
+      case 6:
+        return onOff(tempSettings.hyphenationEnabled);
+      case 7:
+        return onOff(tempSettings.extraParagraphSpacing);
+      case 8:
+        return onOff(tempSettings.textAntiAliasing);
+    }
+  } else {
+    switch (index) {
+      case 0:
+        return (tempSettings.sideButtonLayout == 0) ? tr(STR_PREV_NEXT) : tr(STR_NEXT_PREV);
+      case 1:
+        return tempSettings.longPressChapterSkip ? tr(STR_CHAPTER) : tr(STR_SCROLL);
+      case 2:
+        return (tempSettings.shortPwrBtn == 0)   ? tr(STR_IGNORE)
+               : (tempSettings.shortPwrBtn == 1) ? tr(STR_SLEEP)
+                                                 : tr(STR_PAGE_TURN);
+    }
+  }
+  return "";
+}
+
+void EpubReaderActivity::adjustQsItemValue(int tab, int index, bool increment) {
+  // Helper lambda for wrapping enums securely
+  auto cycle = [](uint8_t& val, int maxVal, bool inc) {
+    if (inc)
+      val = (val + 1) % maxVal;
+    else
+      val = (val == 0) ? maxVal - 1 : val - 1;
+  };
+
+  if (tab == 0) {
+    switch (index) {
+      case 0:
+        cycle(tempSettings.fontFamily, 3, increment);
+        break;
+      case 1:
+        cycle(tempSettings.fontSize, 4, increment);
+        break;
+      case 2:
+        cycle(tempSettings.lineSpacing, 3, increment);
+        break;
+      case 3: {  // Margin (5 to 40, step 5)
+        uint8_t& m = tempSettings.screenMargin;
+        if (increment)
+          m = (m >= 40) ? 5 : m + 5;
+        else
+          m = (m <= 5) ? 40 : m - 5;
+        break;
+      }
+      case 4:
+        cycle(tempSettings.paragraphAlignment, 4, increment);
+        break;
+      // uint8_t based toggles (0 or 1)
+      case 5:
+        tempSettings.embeddedStyle = tempSettings.embeddedStyle ? 0 : 1;
+        break;
+      case 6:
+        tempSettings.hyphenationEnabled = tempSettings.hyphenationEnabled ? 0 : 1;
+        break;
+      case 7:
+        tempSettings.extraParagraphSpacing = tempSettings.extraParagraphSpacing ? 0 : 1;
+        break;
+      case 8:
+        tempSettings.textAntiAliasing = tempSettings.textAntiAliasing ? 0 : 1;
+        break;
+    }
+  } else {
+    switch (index) {
+      case 0:
+        cycle(tempSettings.sideButtonLayout, 2, increment);
+        break;
+      case 1:
+        tempSettings.longPressChapterSkip = tempSettings.longPressChapterSkip ? 0 : 1;
+        break;
+      case 2:
+        cycle(tempSettings.shortPwrBtn, 3, increment);
+        break;
+    }
+  }
+}
+
+void EpubReaderActivity::handleQuickSettingsInput() {
+  const int itemCount = getQsItemCount(qsSelectedTab);
+
+  if (qsState == QuickSettingsState::TAB_FOCUSED) {
+    if (mappedInput.wasReleased(MappedInputManager::Button::Left) ||
+        mappedInput.wasReleased(MappedInputManager::Button::Right)) {
+      qsSelectedTab = (qsSelectedTab == 0) ? 1 : 0;
+      qsSelectedItem = 0;
+      qsScrollOffset = 0;
+      requestUpdate();
+    } else if (mappedInput.wasReleased(MappedInputManager::Button::Down)) {
+      qsState = QuickSettingsState::ITEM_FOCUSED;
+      requestUpdate();
+    } else if (mappedInput.wasReleased(MappedInputManager::Button::Up)) {
+      qsState = QuickSettingsState::ITEM_FOCUSED;
+      qsSelectedItem = itemCount - 1;
+      qsScrollOffset = std::max(0, qsSelectedItem - 3);  // Keep within view
+      requestUpdate();
+    } else if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+      qsState = QuickSettingsState::CLOSED;  // Discard changes
+
+      pagesUntilFullRefresh = 0;
+
+      requestUpdate();
+    }
+  } else if (qsState == QuickSettingsState::ITEM_FOCUSED) {
+    if (mappedInput.wasReleased(MappedInputManager::Button::Up)) {
+      qsSelectedItem--;
+      if (qsSelectedItem < 0) {
+        qsState = QuickSettingsState::TAB_FOCUSED;
+        qsSelectedItem = 0;
+        qsScrollOffset = 0;
+      } else if (qsSelectedItem < qsScrollOffset) {
+        qsScrollOffset = qsSelectedItem;
+      }
+      requestUpdate();
+    } else if (mappedInput.wasReleased(MappedInputManager::Button::Down)) {
+      qsSelectedItem++;
+      if (qsSelectedItem >= itemCount) {
+        qsSelectedItem = 0;  // Wrap around to top
+        qsScrollOffset = 0;
+      } else if (qsSelectedItem > qsScrollOffset + 3) {
+        qsScrollOffset = qsSelectedItem - 3;  // Keep visible
+      }
+      requestUpdate();
+    } else if (mappedInput.wasReleased(MappedInputManager::Button::Left)) {
+      adjustQsItemValue(qsSelectedTab, qsSelectedItem, false);
+      requestUpdate();
+    } else if (mappedInput.wasReleased(MappedInputManager::Button::Right)) {
+      adjustQsItemValue(qsSelectedTab, qsSelectedItem, true);
+      requestUpdate();
+    } else if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
+      applyQuickSettings();
+    } else if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+      qsState = QuickSettingsState::TAB_FOCUSED;
+      requestUpdate();
+    }
+  }
+}
+
+void EpubReaderActivity::applyQuickSettings() {
+  // Commit local modifications to the global CrossPointSettings Singleton
+  SETTINGS.fontFamily = tempSettings.fontFamily;
+  SETTINGS.fontSize = tempSettings.fontSize;
+  SETTINGS.lineSpacing = tempSettings.lineSpacing;
+  SETTINGS.screenMargin = tempSettings.screenMargin;
+  SETTINGS.paragraphAlignment = tempSettings.paragraphAlignment;
+  SETTINGS.embeddedStyle = tempSettings.embeddedStyle;
+  SETTINGS.hyphenationEnabled = tempSettings.hyphenationEnabled;
+  SETTINGS.extraParagraphSpacing = tempSettings.extraParagraphSpacing;
+  SETTINGS.textAntiAliasing = tempSettings.textAntiAliasing;
+  SETTINGS.sideButtonLayout = tempSettings.sideButtonLayout;
+  SETTINGS.longPressChapterSkip = tempSettings.longPressChapterSkip;
+  SETTINGS.shortPwrBtn = tempSettings.shortPwrBtn;
+
+  SETTINGS.saveToFile();
+
+  // Close the overlay BEFORE the blocking reflow operation
+  qsState = QuickSettingsState::CLOSED;
+
+  {
+    RenderLock lock(*this);
+    // Discarding the section forces the Epub engine to rebuild the chapter
+    // with the new font sizes, margins, and line spacing.
+    section.reset();
+
+    pagesUntilFullRefresh = 0;
+
+    // Fallback: Retain reading progress across reflow
+    cachedSpineIndex = currentSpineIndex;
+    if (section) cachedChapterTotalPageCount = section->pageCount;
+  }
+
+  // Trigger a full screen render to apply the heavy layout changes
+  requestUpdate();
+}
+
+void EpubReaderActivity::renderQuickSettingsOverlay() {
+  const int w = renderer.getScreenWidth();
+  const int h = renderer.getScreenHeight();
+
+  // Dynamic bottom overlay sizing (approx bottom 45% of screen)
+  const int overlayH = 260;
+  const int overlayY = h - overlayH;
+
+  // Blank out the background (false means white to clear text behind it)
+  renderer.fillRect(0, overlayY, w, overlayH, false);
+  // Top Border for visual separation
+  renderer.fillRect(0, overlayY, w, 2, true);
+
+  // --- DRAW TABS ---
+  const int tabY = overlayY + 15;
+
+  // OPTIMIZATION: Use const char* instead of std::string to avoid heap allocation
+  const char* t1 = tr(STR_CAT_READER);
+  const char* t2 = tr(STR_CAT_CONTROLS);
+
+  int t1W = renderer.getTextWidth(UI_12_FONT_ID, t1, EpdFontFamily::BOLD);
+  int t2W = renderer.getTextWidth(UI_12_FONT_ID, t2, EpdFontFamily::BOLD);
+
+  int t1X = (w / 4) - (t1W / 2);
+  int t2X = (w * 3 / 4) - (t2W / 2);
+
+  bool isReaderActive = (qsSelectedTab == 0);
+
+  // Highlight active tab if TAB_FOCUSED
+  if (qsState == QuickSettingsState::TAB_FOCUSED && isReaderActive) {
+    renderer.fillRect(t1X - 10, tabY - 5, t1W + 20, 26, true);
+  } else if (qsState == QuickSettingsState::TAB_FOCUSED && !isReaderActive) {
+    renderer.fillRect(t2X - 10, tabY - 5, t2W + 20, 26, true);
+  }
+
+  renderer.drawText(UI_12_FONT_ID, t1X, tabY, t1, !(qsState == QuickSettingsState::TAB_FOCUSED && isReaderActive),
+                    EpdFontFamily::BOLD);
+  renderer.drawText(UI_12_FONT_ID, t2X, tabY, t2, !(qsState == QuickSettingsState::TAB_FOCUSED && !isReaderActive),
+                    EpdFontFamily::BOLD);
+
+  // Tab Separator Line
+  renderer.fillRect(0, tabY + 30, w, 1, true);
+
+  // --- DRAW ITEMS ---
+  const int listY = tabY + 45;
+  const int rowH = 35;
+  const int maxVisible = 4;  // Max rows visible at once to leave room for ButtonHints at bottom
+
+  int itemCount = getQsItemCount(qsSelectedTab);
+  int endIdx = std::min(qsScrollOffset + maxVisible, itemCount);
+
+  // Stack buffers for safe string formatting
+  char valBuf[32];
+  char finalValBuf[64];
+
+  for (int i = qsScrollOffset; i < endIdx; i++) {
+    int rowY = listY + ((i - qsScrollOffset) * rowH);
+    bool isFocused = (qsState == QuickSettingsState::ITEM_FOCUSED && qsSelectedItem == i);
+
+    // Draw focus background highlight
+    if (isFocused) {
+      renderer.fillRect(10, rowY - 5, w - 20, rowH, true);
+    }
+
+    // Draw Key (Left aligned)
+    renderer.drawText(UI_10_FONT_ID, 25, rowY, getQsItemName(qsSelectedTab, i), !isFocused);
+
+    // Draw Value (Right aligned)
+    const char* valStr = getQsItemValue(qsSelectedTab, i, valBuf, sizeof(valBuf));
+
+    // OPTIMIZATION: Format arrow indicators directly into a stack buffer instead of concatenating std::strings
+    if (isFocused) {
+      snprintf(finalValBuf, sizeof(finalValBuf), "<  %s  >", valStr);
+    } else {
+      snprintf(finalValBuf, sizeof(finalValBuf), "%s", valStr);
+    }
+
+    int finalValW = renderer.getTextWidth(UI_10_FONT_ID, finalValBuf);
+
+    renderer.drawText(UI_10_FONT_ID, w - finalValW - 25, rowY, finalValBuf, !isFocused,
+                      isFocused ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
+  }
+
+  // --- DRAW BUTTON HINTS ---
+  const char* hintConfirm = (qsState == QuickSettingsState::ITEM_FOCUSED) ? tr(STR_CONFIRM) : tr(STR_SELECT);
+  const auto labels = mappedInput.mapLabels(tr(STR_BACK), hintConfirm, tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+
+  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 }

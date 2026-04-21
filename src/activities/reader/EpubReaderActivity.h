@@ -3,6 +3,7 @@
 #include <Epub/FootnoteEntry.h>
 #include <Epub/Section.h>
 
+#include "CrossPointSettings.h"
 #include "EpubReaderMenuActivity.h"
 #include "activities/Activity.h"
 
@@ -28,6 +29,46 @@ class EpubReaderActivity final : public Activity {
   bool skipNextButtonCheck = false;  // Skip button processing for one frame after subactivity exit
   uint32_t sessionPagesTurned = 0;   // NEW: tracks pages turned in the current session
   bool automaticPageTurnActive = false;
+
+  // --- QUICK SETTINGS OVERLAY ---
+  // Implements an in-class state machine to modify settings over the text
+  // without re-allocating a new Activity or causing heap fragmentation.
+  enum class QuickSettingsState { CLOSED, TAB_FOCUSED, ITEM_FOCUSED };
+
+  QuickSettingsState qsState = QuickSettingsState::CLOSED;
+  int qsSelectedTab = 0;   // 0 = Reader, 1 = Controls
+  int qsSelectedItem = 0;  // Currently highlighted setting index
+  int qsScrollOffset = 0;  // Pagination offset for the visible list
+
+  // Local state struct to bypass the CrossPointSettings Singleton private constructor.
+  // Holds only the specific properties modified by the Quick Settings menu.
+  struct TempQuickSettings {
+    uint8_t fontFamily;
+    uint8_t fontSize;
+    uint8_t lineSpacing;
+    uint8_t screenMargin;
+    uint8_t paragraphAlignment;
+    uint8_t embeddedStyle;
+    uint8_t hyphenationEnabled;
+    uint8_t extraParagraphSpacing;
+    uint8_t textAntiAliasing;
+    uint8_t sideButtonLayout;
+    uint8_t longPressChapterSkip;
+    uint8_t shortPwrBtn;
+  };
+
+  TempQuickSettings tempSettings;
+  bool qsNeedsBackgroundRender = false;
+
+  // Procedural helpers to avoid heavy std::function overhead on the RISC-V core
+  int getQsItemCount(int tab) const;
+  const char* getQsItemName(int tab, int index) const;
+  const char* getQsItemValue(int tab, int index, char* tempBuf, size_t tempBufSize) const;
+  void adjustQsItemValue(int tab, int index, bool increment);
+  void renderQuickSettingsOverlay();
+  void handleQuickSettingsInput();
+  void applyQuickSettings();
+  // ------------------------------
 
   // Footnote support
   std::vector<FootnoteEntry> currentPageFootnotes;
