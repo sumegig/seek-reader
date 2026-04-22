@@ -311,13 +311,25 @@ This feature can be disabled in the **[Controls Settings](https://www.google.com
     
 - **Chapter Menu:** Press **Confirm** to open the **[Table of Contents/Chapter Selection](https://www.google.com/search?q=%235-chapter-selection-screen)** screen.
 
-### Offline Dictionary & Lookup History
+- **Reader Menu:** Press **Confirm** to open the main reader menu. From here, you can access the Chapter Selection, Footnotes, Quick Settings, Offline Dictionary, and KOReader Sync.
+
+### Quick Settings (Aa) Overlay
+
+Instead of exiting the book to change display settings, SEEK provides a fast, in-reader overlay. 
+
+- **Open Quick Settings:** While reading, press **Confirm** to open the reader menu, then select **Quick Settings**.
+- **Switch Tabs:** Use the **Left** or **Right** buttons to switch between the *Reader* and *Controls* tabs.
+- **Navigate Items:** Press **Down** to enter the list of settings. Use **Up** and **Down** to select a specific setting (e.g., Font Size, Screen Margin).
+- **Adjust Values:** Use the **Left** and **Right** buttons to change the value of the highlighted setting. The changes are updated instantly in the menu.
+- **Apply & Close:** Press **Confirm** (or **Back** to step up to the tabs, then **Back** again) to close the overlay. The EPUB will automatically reflow with your new settings, and the changes will be saved globally to the SD card.
+
+### Offline English Dictionary & Lookup History
 
 SEEK supports offline dictionary lookups directly while reading. To use this feature, you must place standard StarDict dictionary files (`dictionary.dict` and `dictionary.idx`) in the root directory of your SD card.
 
-- **Lookup a Word:** While reading, press **Confirm** to open the reader menu and select **Lookup**. Use the directional buttons to move the highlight box to the desired word, then press **Confirm** to view its definition.
-- **Smart Suggestions:** If an exact match for a word is not found in the dictionary, pressing **Confirm** will display a "Did you mean?" list of similarly spelled words.
-- **Lookup History:** Access the **Lookup History** from the reader menu to review previously searched words. You can press **Confirm** to view their definitions again, or press the **Right** button to delete them from the history (a confirmation prompt will appear).
+- **Lookup a Word:** While reading, press **Confirm** to open the reader menu and select **Lookup**. Use the **Left** and **Right** buttons to move the highlight box pixel-perfectly to the desired word, then press **Confirm** to view its definition.
+- **Smart Suggestions:** If an exact match for a word is not found in the dictionary, pressing **Confirm** will display a "Did you mean?" list of up to 5 similarly spelled words.
+- **Lookup History:** Access **Lookup History** from the reader menu to review previously searched words (sorted chronologically). You can press **Confirm** to view their definitions again, or press the **Right** button to delete a specific word from the history (a confirmation prompt will appear where you can select Yes/No).
 
 ### Supported Languages
 

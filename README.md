@@ -31,7 +31,8 @@ My primary goal with SEEK is to build a highly customizable, personalized readin
     * **Deep Sleep Protection**: Forced session saving during the power-off sequence to prevent data loss even if the device is not manually exited.
     * **Session Guarding**: Smart 3-minute threshold for session tracking to avoid corrupting stats with short wake-up cycles.
     * **Binary Migration**: Seamless v4/v5 to v6 data migration engine for the `stats.bin` database.
-* **Offline Dictionary Engine:** Pixel-perfect word selection directly from EPUB files, StarDict format support, Levenshtein-based "Did you mean?" suggestions, and a memory-safe Lookup History.
+* **Offline English Dictionary Engine:** Pixel-perfect word selection directly from EPUB files, StarDict format support, Levenshtein-based "Did you mean?" suggestions, and a memory-safe Lookup History with an integrated deletion state-machine.
+* **In-Reader Quick Settings (Aa) Overlay:** Adjust reading preferences (fonts, sizes, margins, layouts) directly over the book text without loading a full-screen settings menu. Optimized with zero-heap formatting, deferred SD card writes to protect flash lifespan, and custom display buffering to eliminate E-ink ghosting during navigation.
 * **More to come:** I am actively shaping the firmware, so expect more personalized features, custom sleep screens, and UI overhauls.
 
 ## Features & Usage
