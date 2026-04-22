@@ -26,11 +26,12 @@ Welcome to the **SEEK** firmware. This guide outlines the hardware controls, nav
     - [Page Turning](#page-turning)
     - [Chapter Navigation](#chapter-navigation)
     - [System Navigation](#system-navigation)
+    - [Quick Settings (Aa) Overlay](#quick-settings-aa-overlay)
+    - [Offline Dictionary & Lookup History](#offline-dictionary--lookup-history)
     - [Supported Languages](#supported-languages)
   - [5. Chapter Selection Screen](#5-chapter-selection-screen)
   - [6. Current Limitations & Roadmap](#6-current-limitations--roadmap)
   - [7. Troubleshooting Issues & Escaping Bootloop](#7-troubleshooting-issues--escaping-bootloop)
-
 
 ## 1. Hardware Overview
 
