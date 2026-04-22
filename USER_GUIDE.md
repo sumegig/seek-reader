@@ -323,9 +323,11 @@ Instead of exiting the book to change display settings, SEEK provides a fast, in
 - **Adjust Values:** Use the **Left** and **Right** buttons to change the value of the highlighted setting. The changes are updated instantly in the menu.
 - **Apply & Close:** Press **Confirm** (or **Back** to step up to the tabs, then **Back** again) to close the overlay. The EPUB will automatically reflow with your new settings, and the changes will be saved globally to the SD card.
 
-### Offline English Dictionary & Lookup History
+### Offline Dictionary & Lookup History
 
-SEEK supports offline dictionary lookups directly while reading. To use this feature, you must place standard StarDict dictionary files (`dictionary.dict` and `dictionary.idx`) in the root directory of your SD card.
+SEEK supports offline dictionary lookups directly while reading. To use this feature, you must place standard StarDict dictionary files (`dictionary.dict` and `dictionary.idx`) in the root directory of your SD card. 
+
+📥 **[Dictionary Files are available in the repository here](./English-Dictionary)**
 
 - **Lookup a Word:** While reading, press **Confirm** to open the reader menu and select **Lookup**. Use the **Left** and **Right** buttons to move the highlight box pixel-perfectly to the desired word, then press **Confirm** to view its definition.
 - **Smart Suggestions:** If an exact match for a word is not found in the dictionary, pressing **Confirm** will display a "Did you mean?" list of up to 5 similarly spelled words.
