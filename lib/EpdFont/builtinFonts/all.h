@@ -1,5 +1,23 @@
 #pragma once
 
+// new 10 Bookerly size
+#include <builtinFonts/bookerly_10_regular.h>
+#include <builtinFonts/bookerly_10_bold.h>
+#include <builtinFonts/bookerly_10_italic.h>
+#include <builtinFonts/bookerly_10_bolditalic.h>
+
+// new 10 Noto Sans size
+#include <builtinFonts/notosans_10_regular.h>
+#include <builtinFonts/notosans_10_bold.h>
+#include <builtinFonts/notosans_10_italic.h>
+#include <builtinFonts/notosans_10_bolditalic.h>
+
+// new 6 OpenDyslexic size
+#include <builtinFonts/opendyslexic_6_regular.h>
+#include <builtinFonts/opendyslexic_6_bold.h>
+#include <builtinFonts/opendyslexic_6_italic.h>
+#include <builtinFonts/opendyslexic_6_bolditalic.h>
+
 #include <builtinFonts/bookerly_12_bold.h>
 #include <builtinFonts/bookerly_12_bolditalic.h>
 #include <builtinFonts/bookerly_12_italic.h>

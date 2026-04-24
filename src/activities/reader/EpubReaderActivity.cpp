@@ -1066,9 +1066,10 @@ const char* EpubReaderActivity::getQsItemValue(int tab, int index, char* tempBuf
                : (SETTINGS.fontFamily == 1) ? tr(STR_NOTO_SANS)
                                             : tr(STR_OPEN_DYSLEXIC);
       case 1:
-        return (SETTINGS.fontSize == 0)   ? tr(STR_SMALL)
-               : (SETTINGS.fontSize == 1) ? tr(STR_MEDIUM)
-               : (SETTINGS.fontSize == 2) ? tr(STR_LARGE)
+        return (SETTINGS.fontSize == 0)   ? tr(STR_X_SMALL)
+               : (SETTINGS.fontSize == 1) ? tr(STR_SMALL)
+               : (SETTINGS.fontSize == 2) ? tr(STR_MEDIUM)
+               : (SETTINGS.fontSize == 3) ? tr(STR_LARGE)
                                           : tr(STR_X_LARGE);
       case 2:
         return (SETTINGS.lineSpacing == 0)   ? tr(STR_TIGHT)
@@ -1124,7 +1125,7 @@ void EpubReaderActivity::adjustQsItemValue(int tab, int index, bool increment) {
         cycle(SETTINGS.fontFamily, 3, increment);
         break;
       case 1:
-        cycle(SETTINGS.fontSize, 4, increment);
+        cycle(SETTINGS.fontSize, 5, increment);
         break;
       case 2:
         cycle(SETTINGS.lineSpacing, 3, increment);

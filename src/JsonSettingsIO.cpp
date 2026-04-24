@@ -98,6 +98,9 @@ bool JsonSettingsIO::loadState(CrossPointState& s, const char* json) {
 bool JsonSettingsIO::saveSettings(const CrossPointSettings& s, const char* path) {
   JsonDocument doc;
 
+  // Mark the font size as migrated to the new schema (X_SMALL added at index 0)
+  doc["fontSizeMigrated"] = true;
+
   for (const auto& info : getSettingsList()) {
     if (!info.key) continue;
     // Dynamic entries (KOReader etc.) are stored in their own files — skip.
@@ -134,6 +137,19 @@ bool JsonSettingsIO::loadSettings(CrossPointSettings& s, const char* json, bool*
     LOG_ERR("CPS", "JSON parse error: %s", error.c_str());
     return false;
   }
+
+  // --- BEGIN FONT SIZE MIGRATION ---
+  // If the font size hasn't been migrated to include EXTRA_SMALL (which shifted all enum values by +1)
+  if (doc["fontSizeMigrated"].isNull()) {
+    if (doc.containsKey("fontSize")) {
+      uint8_t oldSize = doc["fontSize"];
+      doc["fontSize"] = oldSize + 1;  // Shift the old value up to match the new enum mapping
+      doc["fontSizeMigrated"] = true;
+      if (needsResave) *needsResave = true;
+      LOG_DBG("CPS", "Migrated fontSize from %d to %d", oldSize, oldSize + 1);
+    }
+  }
+  // --- END FONT SIZE MIGRATION ---
 
   auto clamp = [](uint8_t val, uint8_t maxVal, uint8_t def) -> uint8_t { return val < maxVal ? val : def; };
 
