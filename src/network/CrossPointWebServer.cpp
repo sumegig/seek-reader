@@ -13,9 +13,11 @@
 #include "CrossPointSettings.h"
 #include "SettingsList.h"
 #include "WebDAVHandler.h"
+#include "fonts/CustomFontRuntime.h"
 #include "html/FilesPageHtml.generated.h"
 #include "html/HomePageHtml.generated.h"
 #include "html/SettingsPageHtml.generated.h"
+#include "html/js/font_converterJs.generated.h"
 #include "html/js/jszip_minJs.generated.h"
 
 namespace {
@@ -136,6 +138,9 @@ void CrossPointWebServer::begin() {
   server->on("/files", HTTP_GET, [this] { handleFileList(); });
   server->on("/js/jszip.min.js", HTTP_GET, [this] { handleJszip(); });
 
+  server->on("/js/jszip.min.js", HTTP_GET, [this] { handleJszip(); });
+  server->on("/js/font_converter.js", HTTP_GET, [this] { handleFontConverterJs(); });
+
   server->on("/api/status", HTTP_GET, [this] { handleStatus(); });
   server->on("/api/files", HTTP_GET, [this] { handleFileListData(); });
   server->on("/download", HTTP_GET, [this] { handleDownload(); });
@@ -159,6 +164,11 @@ void CrossPointWebServer::begin() {
   server->on("/settings", HTTP_GET, [this] { handleSettingsPage(); });
   server->on("/api/settings", HTTP_GET, [this] { handleGetSettings(); });
   server->on("/api/settings", HTTP_POST, [this] { handlePostSettings(); });
+  // Custom fonts API
+  server->on("/api/custom_fonts", HTTP_GET, [this] { handleGetCustomFonts(); });
+  server->on("/api/custom_fonts", HTTP_POST, [this] { handlePostCustomFonts(); });
+  server->on("/api/font_sizes", HTTP_GET, [this] { handleGetFontSizes(); });
+  server->on("/api/delete_custom_font", HTTP_POST, [this] { handleDeleteCustomFont(); });
 
   server->onNotFound([this] { handleNotFound(); });
   LOG_DBG("WEB", "[MEM] Free heap after route setup: %d bytes", ESP.getFreeHeap());
@@ -333,6 +343,12 @@ void CrossPointWebServer::handleJszip() const {
   LOG_DBG("WEB", "Served jszip.min.js");
 }
 
+void CrossPointWebServer::handleFontConverterJs() const {
+  server->sendHeader("Content-Encoding", "gzip");
+  server->send_P(200, "application/javascript", font_converterJs, font_converterJsCompressedSize);
+  LOG_DBG("WEB", "Served font_converter.js");
+}
+
 void CrossPointWebServer::handleNotFound() const {
   String message = "404 Not Found\n\n";
   message += "URI: " + server->uri() + "\n";
@@ -350,6 +366,7 @@ void CrossPointWebServer::handleStatus() const {
   doc["rssi"] = apMode ? 0 : WiFi.RSSI();
   doc["freeHeap"] = ESP.getFreeHeap();
   doc["uptime"] = millis() / 1000;
+  doc["wsPort"] = wsPort;
 
   String json;
   serializeJson(doc, json);
@@ -1105,9 +1122,13 @@ void CrossPointWebServer::handleGetSettings() const {
         } else if (s.valueGetter) {
           doc["value"] = static_cast<int>(s.valueGetter());
         }
+
         JsonArray options = doc["options"].to<JsonArray>();
-        for (const auto& opt : s.enumValues) {
-          options.add(I18N.get(opt));
+        if (s.optionsGetter) {
+          const auto opts = s.optionsGetter();
+          for (const auto& opt : opts) options.add(opt);
+        } else {
+          for (const auto& opt : s.enumValues) options.add(I18N.get(opt));
         }
         break;
       }
@@ -1185,7 +1206,11 @@ void CrossPointWebServer::handlePostSettings() {
       }
       case SettingType::ENUM: {
         const int val = doc[s.key].as<int>();
-        if (val >= 0 && val < static_cast<int>(s.enumValues.size())) {
+
+        size_t optionCount = s.enumValues.size();
+        if (s.optionsGetter) optionCount = s.optionsGetter().size();
+
+        if (val >= 0 && val < static_cast<int>(optionCount)) {
           if (s.valuePtr) {
             SETTINGS.*(s.valuePtr) = static_cast<uint8_t>(val);
           } else if (s.valueSetter) {
@@ -1226,6 +1251,172 @@ void CrossPointWebServer::handlePostSettings() {
 
   LOG_DBG("WEB", "Applied %d setting(s)", applied);
   server->send(200, "text/plain", String("Applied ") + String(applied) + " setting(s)");
+}
+
+static bool isAllowedFontSize(int sizePx) {
+  switch (sizePx) {
+    case 10:
+    case 12:
+    case 14:
+    case 16:
+    case 18:
+      return true;
+    default:
+      return false;
+  }
+}
+
+static bool styleToBitAndToken(const String& style, uint8_t& outBit, const char*& outToken) {
+  if (style == "regular") {
+    outBit = CustomFontsIndex::STYLE_REGULAR;
+    outToken = "regular";
+    return true;
+  }
+  if (style == "bold") {
+    outBit = CustomFontsIndex::STYLE_BOLD;
+    outToken = "bold";
+    return true;
+  }
+  if (style == "italic") {
+    outBit = CustomFontsIndex::STYLE_ITALIC;
+    outToken = "italic";
+    return true;
+  }
+  if (style == "bolditalic") {
+    outBit = CustomFontsIndex::STYLE_BOLD_ITALIC;
+    outToken = "bolditalic";
+    return true;
+  }
+  return false;
+}
+
+static String makeCustomFontBinName(uint8_t slot, int sizePx, const char* styleToken) {
+  // custom_slot{slot}_{size}_{style}.bin
+  char buf[96];
+  snprintf(buf, sizeof(buf), "custom_slot%u_%d_%s.bin", slot, sizePx, styleToken);
+  return String(buf);
+}
+
+void CrossPointWebServer::handleGetFontSizes() const {
+  JsonDocument doc;
+  JsonArray arr = doc.to<JsonArray>();
+  arr.add(10);
+  arr.add(12);
+  arr.add(14);
+  arr.add(16);
+  arr.add(18);
+
+  String out;
+  serializeJson(doc, out);
+  server->send(200, "application/json", out);
+}
+
+void CrossPointWebServer::handleGetCustomFonts() const {
+  // Ensure index exists (and SD dir exists)
+  // (begin() already does loadOrCreate, but calling loadOrCreate again is safe.)
+  CUSTOM_FONT_RUNTIME.index().loadOrCreate();
+
+  JsonDocument doc;
+  doc["version"] = CustomFontsIndex::kVersion;
+
+  JsonArray slotsArr = doc["slots"].to<JsonArray>();
+  for (uint8_t slot = 1; slot <= CustomFontsIndex::kSlotCount; slot++) {
+    const auto& s = CUSTOM_FONT_RUNTIME.index().getSlot(slot);
+    JsonObject o = slotsArr.add<JsonObject>();
+    o["id"] = s.id;
+    o["active"] = s.active;
+    o["name"] = s.name;
+    o["styleMask"] = s.styleMask;
+  }
+
+  String out;
+  serializeJson(doc, out);
+  server->send(200, "application/json", out);
+}
+
+void CrossPointWebServer::handlePostCustomFonts() {
+  if (!server->hasArg("plain")) {
+    server->send(400, "text/plain", "Missing JSON body");
+    return;
+  }
+
+  JsonDocument doc;
+  const DeserializationError err = deserializeJson(doc, server->arg("plain"));
+  if (err) {
+    server->send(400, "text/plain", String("Invalid JSON: ") + err.c_str());
+    return;
+  }
+
+  const int slot = doc["slot"] | 0;
+  const char* name = doc["name"] | "";
+  const int styleMask = doc["styleMask"] | 0;
+  const bool active = doc["active"] | true;
+
+  if (slot < 1 || slot > CustomFontsIndex::kSlotCount) {
+    server->send(400, "text/plain", "Invalid slot (must be 1..3)");
+    return;
+  }
+  if (!name || name[0] == '\0') {
+    server->send(400, "text/plain", "Missing/empty name");
+    return;
+  }
+
+  auto& idx = CUSTOM_FONT_RUNTIME.index();
+  idx.loadOrCreate();
+  idx.setSlot(static_cast<uint8_t>(slot), name, static_cast<uint8_t>(styleMask & 0x0F), active);
+
+  if (!idx.save()) {
+    server->send(500, "text/plain", "Failed to save custom_fonts.json");
+    return;
+  }
+
+  server->send(200, "text/plain", "OK");
+}
+
+void CrossPointWebServer::handleDeleteCustomFont() {
+  // POST /api/delete_custom_font?slot=1
+  if (!server->hasArg("slot")) {
+    server->send(400, "text/plain", "Missing slot");
+    return;
+  }
+
+  const int slot = server->arg("slot").toInt();
+  if (slot < 1 || slot > CustomFontsIndex::kSlotCount) {
+    server->send(400, "text/plain", "Invalid slot (must be 1..3)");
+    return;
+  }
+
+  const uint8_t slotId = static_cast<uint8_t>(slot);
+
+  // Delete files (best-effort): all sizes x all 4 styles
+  static const int kSizes[] = {10, 12, 14, 16, 18};
+  static const char* kStyles[] = {"regular", "bold", "italic", "bolditalic"};
+
+  for (int sz : kSizes) {
+    for (const char* st : kStyles) {
+      const String path = String(CustomFontsIndex::kDir) + "/" + makeCustomFontBinName(slotId, sz, st);
+      if (Storage.exists(path.c_str())) {
+        Storage.remove(path.c_str());
+      }
+    }
+  }
+
+  // Update index
+  auto& idx = CUSTOM_FONT_RUNTIME.index();
+  idx.loadOrCreate();
+  idx.clearSlot(slotId);
+  if (!idx.save()) {
+    server->send(500, "text/plain", "Failed to save custom_fonts.json");
+    return;
+  }
+
+  // If the user currently selected this slot, disable it to avoid constant fallback
+  if (SETTINGS.customFontSlot == slotId) {
+    SETTINGS.customFontSlot = 0;
+    SETTINGS.saveToFile();
+  }
+
+  server->send(200, "text/plain", "OK");
 }
 
 // WebSocket callback trampoline

@@ -7,6 +7,7 @@
 #include "CrossPointSettings.h"
 #include "KOReaderCredentialStore.h"
 #include "activities/settings/SettingsActivity.h"
+#include "fonts/CustomFontRuntime.h"
 
 // Shared settings list used by both the device settings UI and the web settings API.
 // Each entry has a key (for JSON API) and category (for grouping).
@@ -38,6 +39,28 @@ inline const std::vector<SettingInfo>& getSettingsList() {
                           StrId::STR_CAT_DISPLAY),
 
       // --- Reader ---
+
+      SettingInfo::EnumWithOptions(
+          StrId::STR_CUSTOM_FONT, &CrossPointSettings::customFontSlot,
+          []() -> std::vector<std::string> {
+            std::vector<std::string> opts;
+            opts.reserve(1 + 3);
+
+            opts.push_back("Off");
+
+            // Slot labels: only append name if slot exists in the index
+            const auto& idx = CUSTOM_FONT_RUNTIME.index();
+            for (uint8_t slot = 1; slot <= 3; slot++) {
+              const char* name = idx.slotName(slot);
+              if (idx.slotExists(slot) && name && name[0] != '\0') {
+                opts.push_back(std::string("Slot ") + std::to_string(slot) + ": " + name);
+              } else {
+                opts.push_back(std::string("Slot ") + std::to_string(slot));
+              }
+            }
+            return opts;
+          },
+          "customFontSlot", StrId::STR_CAT_READER),
       SettingInfo::Enum(StrId::STR_FONT_FAMILY, &CrossPointSettings::fontFamily,
                         {StrId::STR_BOOKERLY, StrId::STR_NOTO_SANS, StrId::STR_OPEN_DYSLEXIC}, "fontFamily",
                         StrId::STR_CAT_READER),

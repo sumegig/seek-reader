@@ -107,4 +107,10 @@ class CrossPointWebServer {
   void handleSettingsPage() const;
   void handleGetSettings() const;
   void handlePostSettings();
+
+  void handleGetCustomFonts() const;
+  void handlePostCustomFonts();
+  void handleGetFontSizes() const;
+  void handleDeleteCustomFont();
+  void handleFontConverterJs() const;
 };

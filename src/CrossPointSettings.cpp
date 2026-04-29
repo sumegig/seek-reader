@@ -293,7 +293,7 @@ int CrossPointSettings::getRefreshFrequency() const {
   }
 }
 
-int CrossPointSettings::getReaderFontId() const {
+int CrossPointSettings::getBuiltInReaderFontId() const {
   switch (fontFamily) {
     case BOOKERLY:
     default:
@@ -310,6 +310,7 @@ int CrossPointSettings::getReaderFontId() const {
         case EXTRA_LARGE:
           return BOOKERLY_18_FONT_ID;
       }
+
     case NOTOSANS:
       switch (fontSize) {
         case EXTRA_SMALL:
@@ -324,6 +325,7 @@ int CrossPointSettings::getReaderFontId() const {
         case EXTRA_LARGE:
           return NOTOSANS_18_FONT_ID;
       }
+
     case OPENDYSLEXIC:
       switch (fontSize) {
         case EXTRA_SMALL:
@@ -339,4 +341,11 @@ int CrossPointSettings::getReaderFontId() const {
           return OPENDYSLEXIC_14_FONT_ID;
       }
   }
+}
+
+int CrossPointSettings::getReaderFontId() const {
+  if (customFontSlot != 0) {
+    return CUSTOM_FONT_ID;
+  }
+  return getBuiltInReaderFontId();
 }

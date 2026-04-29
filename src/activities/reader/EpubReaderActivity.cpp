@@ -23,6 +23,7 @@
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "fonts/CustomFontRuntime.h"
 #include "stats/ReadingStatsManager.h"  // added when developing Statistics menu
 #include "util/ScreenshotUtil.h"
 
@@ -819,6 +820,7 @@ void EpubReaderActivity::saveProgress(int spineIndex, int currentPage, int pageC
     LOG_ERR("ERS", "Could not save progress!");
   }
 }
+
 void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int orientedMarginTop,
                                         const int orientedMarginRight, const int orientedMarginBottom,
                                         const int orientedMarginLeft) {
@@ -826,10 +828,21 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   auto* fcm = renderer.getFontCacheManager();
   fcm->resetStats();
 
+  // --- Custom font runtime hook ---
+  // Ensure CUSTOM_FONT_ID is actually mapped to a loaded custom font family
+  // BEFORE any scan/prewarm or real render passes.
+  int readerFontId = SETTINGS.getReaderFontId();
+  if (readerFontId == CUSTOM_FONT_ID) {
+    if (!CUSTOM_FONT_RUNTIME.ensureLoadedForCurrentSettings(renderer, *fcm)) {
+      // If custom font couldn't be activated (missing slot/files), render with built-in font instead.
+      readerFontId = SETTINGS.getBuiltInReaderFontId();
+    }
+  }
+
   // Font prewarm: scan pass accumulates text, then prewarm, then real render
   const uint32_t heapBefore = esp_get_free_heap_size();
   auto scope = fcm->createPrewarmScope();
-  page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);  // scan pass
+  page->render(renderer, readerFontId, orientedMarginLeft, orientedMarginTop);  // scan pass
   scope.endScanAndPrewarm();
   const uint32_t heapAfter = esp_get_free_heap_size();
   fcm->logStats("prewarm");
@@ -846,7 +859,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   // Force special handling for pages with images when anti-aliasing is on
   bool imagePageWithAA = page->hasImages() && SETTINGS.textAntiAliasing;
 
-  page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
+  page->render(renderer, readerFontId, orientedMarginLeft, orientedMarginTop);
   renderStatusBar();
   fcm->logStats("bw_render");
   const auto tBwRender = millis();
@@ -859,7 +872,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
       if (!isQsOpen) renderer.displayBuffer(HalDisplay::FAST_REFRESH);
 
       // Re-render page content to restore images into the blanked area
-      page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
+      page->render(renderer, readerFontId, orientedMarginLeft, orientedMarginTop);
       if (!isQsOpen) renderer.displayBuffer(HalDisplay::FAST_REFRESH);
     } else {
       if (!isQsOpen) renderer.displayBuffer(HalDisplay::HALF_REFRESH);
@@ -878,14 +891,14 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   if (SETTINGS.textAntiAliasing && !isQsOpen) {
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
-    page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
+    page->render(renderer, readerFontId, orientedMarginLeft, orientedMarginTop);
     renderer.copyGrayscaleLsbBuffers();
     const auto tGrayLsb = millis();
 
     // Render and copy to MSB buffer
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
-    page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
+    page->render(renderer, readerFontId, orientedMarginLeft, orientedMarginTop);
     renderer.copyGrayscaleMsbBuffers();
     const auto tGrayMsb = millis();
 
@@ -917,7 +930,6 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
             tEnd - t0);
   }
 }
-
 void EpubReaderActivity::renderStatusBar() const {
   // Calculate progress in book
   const int currentPage = section->currentPage + 1;

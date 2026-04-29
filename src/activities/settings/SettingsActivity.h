@@ -50,10 +50,23 @@ struct SettingInfo {
   std::function<void(uint8_t)> valueSetter;
   std::function<std::string()> stringGetter;
   std::function<void(const std::string&)> stringSetter;
+  std::function<std::vector<std::string>()> optionsGetter;  // runtime option labels
 
   SettingInfo& withObfuscated() {
     obfuscated = true;
     return *this;
+  }
+  static SettingInfo EnumWithOptions(StrId nameId, uint8_t CrossPointSettings::* ptr,
+                                     std::function<std::vector<std::string>()> optionsGetter, const char* key = nullptr,
+                                     StrId category = StrId::STR_NONE_OPT) {
+    SettingInfo s;
+    s.nameId = nameId;
+    s.type = SettingType::ENUM;
+    s.valuePtr = ptr;
+    s.optionsGetter = std::move(optionsGetter);
+    s.key = key;
+    s.category = category;
+    return s;
   }
 
   static SettingInfo Toggle(StrId nameId, uint8_t CrossPointSettings::* ptr, const char* key = nullptr,

@@ -27,6 +27,7 @@
 #include "stats/ReadingStatsManager.h"  // added when developing Statistics menu
 #include "util/ButtonNavigator.h"
 #include "util/ScreenshotUtil.h"
+#include "fonts/CustomFontRuntime.h"
 
 MappedInputManager mappedInputManager(gpio);
 GfxRenderer renderer(display);
@@ -285,6 +286,7 @@ void setup() {
     activityManager.goToFullScreenMessage("SD card error", EpdFontFamily::BOLD);
     return;
   }
+  CUSTOM_FONT_RUNTIME.begin();
 
   HalSystem::checkPanic();
   HalSystem::clearPanic();  // TODO: move this to an activity when we have one to display the panic info

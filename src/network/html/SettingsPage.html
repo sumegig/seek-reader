@@ -253,6 +253,68 @@
     </div>
   </div>
 
+          <!-- Custom Font Uploader -->
+ <div class="card">
+  <h2>Custom Fonts</h2>
+
+  <div class="setting-row">
+    <span class="setting-name">Slot</span>
+    <span class="setting-control">
+      <select id="cfSlot">
+        <option value="1">Slot 1</option>
+        <option value="2">Slot 2</option>
+        <option value="3">Slot 3</option>
+      </select>
+    </span>
+  </div>
+
+  <div class="setting-row">
+    <span class="setting-name">Name (shown on device)</span>
+    <span class="setting-control">
+      <input id="cfName" type="text" placeholder="e.g. Garamond" />
+    </span>
+  </div>
+
+  <div class="setting-row">
+    <span class="setting-name">Style</span>
+    <span class="setting-control">
+      <select id="cfStyle">
+        <option value="regular">Regular</option>
+        <option value="bold">Bold</option>
+        <option value="italic">Italic</option>
+        <option value="bolditalic">Bold Italic</option>
+      </select>
+    </span>
+  </div>
+
+  <div class="setting-row">
+    <span class="setting-name">Character set</span>
+    <span class="setting-control">
+      <select id="cfCharset">
+        <option value="minimal">Minimal (fast)</option>
+        <option value="extended">Extended Latin + punctuation (bigger)</option>
+      </select>
+    </span>
+  </div>
+
+  <div class="setting-row">
+    <span class="setting-name">TTF/OTF</span>
+    <span class="setting-control">
+      <input id="cfTtf" type="file" accept=".ttf,.otf" />
+    </span>
+  </div>
+
+  <div class="setting-row">
+    <span class="setting-name">Actions</span>
+    <span class="setting-control">
+      <button id="cfGenerateUploadBtn">Generate + Upload (10/12/14/16/18)</button>
+      <button id="cfDeleteBtn">Delete Slot</button>
+    </span>
+  </div>
+
+  <pre id="cfLog" style="white-space:pre-wrap; max-height:260px; overflow:auto;"></pre>
+</div>
+
   <div class="save-container" id="save-container" style="display:none;">
     <button class="save-btn" id="saveBtn" onclick="saveSettings()">Save Settings</button>
   </div>
@@ -262,6 +324,8 @@
       CrossPoint E-Reader • Open Source
     </p>
   </div>
+
+<script src="/js/font_converter.js"></script>
 
 <script>
   let allSettings = [];
