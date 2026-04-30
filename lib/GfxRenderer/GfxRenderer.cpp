@@ -179,7 +179,15 @@ void GfxRenderer::drawPixel(const int x, const int y, const bool state) const {
 
   // Bounds checking against runtime panel dimensions
   if (phyX < 0 || phyX >= panelWidth || phyY < 0 || phyY >= panelHeight) {
-    LOG_ERR("GFX", "!! Outside range (%d, %d) -> (%d, %d)", x, y, phyX, phyY);
+    // Rate-limit to avoid log spam / slowdown if something draws slightly out of bounds.
+    static uint32_t s_oobLogCount = 0;
+    if (s_oobLogCount < 20) {
+      LOG_ERR("GFX", "!! Outside range (%d, %d) -> (%d, %d)", x, y, phyX, phyY);
+      if (s_oobLogCount == 19) {
+        LOG_ERR("GFX", "!! Outside range: further messages suppressed");
+      }
+      s_oobLogCount++;
+    }
     return;
   }
 
@@ -1060,7 +1068,18 @@ int GfxRenderer::getTextHeight(const int fontId) const {
     LOG_ERR("GFX", "Font %d not found", fontId);
     return 0;
   }
-  return fontIt->second.getData(EpdFontFamily::REGULAR)->ascender;
+
+  const EpdFontData* d = fontIt->second.getData(EpdFontFamily::REGULAR);
+  if (!d) return 0;
+
+  // Prefer newline distance (baseline-to-baseline). This is what layout needs.
+  if (d->advanceY > 0) {
+    return d->advanceY;
+  }
+
+  // Fallback: ascender + |descender|
+  const int descMag = (d->descender < 0) ? -d->descender : d->descender;
+  return d->ascender + descMag;
 }
 
 void GfxRenderer::drawTextRotated90CW(const int fontId, const int x, const int y, const char* text, const bool black,

@@ -3,6 +3,7 @@
 #include <HalStorage.h>
 #include <Logging.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -150,8 +151,8 @@ class CustomFontBinLoader {
       return nullptr;
     }
     if (h.glyphCount == 0 || h.intervalCount == 0) {
-      LOG_ERR("CFBL", "Invalid counts glyphCount=%lu intervalCount=%lu: %s",
-              (unsigned long)h.glyphCount, (unsigned long)h.intervalCount, path);
+      LOG_ERR("CFBL", "Invalid counts glyphCount=%lu intervalCount=%lu: %s", (unsigned long)h.glyphCount,
+              (unsigned long)h.intervalCount, path);
       f.close();
       return nullptr;
     }
@@ -343,8 +344,8 @@ class CustomFontBinLoader {
         const uint64_t start = (uint64_t)loaded->groups[i].compressedOffset;
         const uint64_t end = start + (uint64_t)loaded->groups[i].compressedSize;
         if (end > h.bitmapSize) {
-          LOG_ERR("CFBL", "Group %lu compressed range out of bitmap bounds (end=%llu bitmapSize=%lu)",
-                  (unsigned long)i, (unsigned long long)end, (unsigned long)h.bitmapSize);
+          LOG_ERR("CFBL", "Group %lu compressed range out of bitmap bounds (end=%llu bitmapSize=%lu)", (unsigned long)i,
+                  (unsigned long long)end, (unsigned long)h.bitmapSize);
           f.close();
           return nullptr;
         }
@@ -367,8 +368,8 @@ class CustomFontBinLoader {
       // Sanity: group indices should be < groupCount
       for (uint32_t i = 0; i < h.glyphCount; i++) {
         if (loaded->glyphToGroup[i] >= h.groupCount) {
-          LOG_ERR("CFBL", "glyphToGroup[%lu]=%u out of range (groupCount=%lu)",
-                  (unsigned long)i, loaded->glyphToGroup[i], (unsigned long)h.groupCount);
+          LOG_ERR("CFBL", "glyphToGroup[%lu]=%u out of range (groupCount=%lu)", (unsigned long)i,
+                  loaded->glyphToGroup[i], (unsigned long)h.groupCount);
           f.close();
           return nullptr;
         }
@@ -422,8 +423,7 @@ class CustomFontBinLoader {
 
     // Ligatures (optional)
     if (cpfnt::hasFlag(h, cpfnt::FLAG_HAS_LIGATURES) && h.ligaturePairCount > 0) {
-      loaded->ligaturePairs =
-          static_cast<EpdLigaturePair*>(malloc(h.ligaturePairCount * sizeof(EpdLigaturePair)));
+      loaded->ligaturePairs = static_cast<EpdLigaturePair*>(malloc(h.ligaturePairCount * sizeof(EpdLigaturePair)));
       if (!loaded->ligaturePairs) {
         LOG_ERR("CFBL", "Failed to alloc ligaturePairs");
         f.close();
@@ -444,7 +444,10 @@ class CustomFontBinLoader {
 
     loaded->data.advanceY = h.advanceY;
     loaded->data.ascender = h.ascender;
-    loaded->data.descender = h.descender;
+
+    // Normalize descender to magnitude; CPFN may store negative or positive depending on generator version.
+    loaded->data.descender = (h.descender < 0) ? -h.descender : h.descender;
+
     loaded->data.is2Bit = true;
 
     loaded->data.groups = loaded->groups;
@@ -462,13 +465,52 @@ class CustomFontBinLoader {
     loaded->data.ligaturePairs = loaded->ligaturePairs;
     loaded->data.ligaturePairCount = h.ligaturePairCount;
 
+    // Clamp/recompute metrics from glyphs to prevent overlap even if header metrics are imperfect.
+    clampAndRecomputeMetricsFromGlyphs(loaded->data, h.glyphCount);
+
     f.close();
-    LOG_DBG("CFBL", "Loaded font: %s (glyphs=%lu groups=%lu bitmap=%lu bytes)",
-            path, (unsigned long)h.glyphCount, (unsigned long)h.groupCount, (unsigned long)h.bitmapSize);
+
+    LOG_DBG("CFBL", "Loaded font: %s (glyphs=%lu groups=%lu bitmap=%lu bytes) metrics: advY=%u asc=%d desc=%d", path,
+            (unsigned long)h.glyphCount, (unsigned long)h.groupCount, (unsigned long)h.bitmapSize,
+            (unsigned)loaded->data.advanceY, loaded->data.ascender, loaded->data.descender);
+
     return loaded;
   }
 
  private:
+  static void clampAndRecomputeMetricsFromGlyphs(EpdFontData& data, const uint32_t glyphCount) {
+    if (!data.glyph || glyphCount == 0) return;
+
+    int maxTop = 0;    // max pixels above baseline
+    int maxBelow = 0;  // max pixels below baseline
+
+    for (uint32_t i = 0; i < glyphCount; i++) {
+      const EpdGlyph& g = data.glyph[i];
+
+      // Skip empty glyphs
+      if (g.width == 0 || g.height == 0) continue;
+
+      // 'top' is distance from baseline to glyph top edge in pixels
+      maxTop = std::max(maxTop, (int)g.top);
+
+      // pixels below baseline = height - top (if positive)
+      const int below = (int)g.height - (int)g.top;
+      if (below > maxBelow) maxBelow = below;
+    }
+
+    data.ascender = std::max(data.ascender, maxTop);
+
+    // descender is treated as magnitude
+    const int descMag = (data.descender < 0) ? -data.descender : data.descender;
+    data.descender = std::max(descMag, maxBelow);  // Always positive magnitude
+
+    // Ensure line height is enough to avoid overlap; add 2px leading.
+    const int minAdvanceY = data.ascender + data.descender + 2;
+    if ((int)data.advanceY < minAdvanceY) {
+      data.advanceY = (uint8_t)std::min(minAdvanceY, 255);
+    }
+  }
+
   static bool readExact(FsFile& f, uint32_t offset, void* dst, uint32_t len) {
     if (len == 0) return true;
     if (!dst) return false;
@@ -488,8 +530,8 @@ class CustomFontBinLoader {
         LOG_ERR("CFBL", "read failed (wanted %lu, got %d)", (unsigned long)chunk, r);
         return false;
       }
-      out += static_cast<uint32_t>(r);
-      remaining -= static_cast<uint32_t>(r);
+      out += (uint32_t)r;
+      remaining -= (uint32_t)r;
     }
     return true;
   }

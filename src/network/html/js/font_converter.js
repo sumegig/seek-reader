@@ -117,64 +117,66 @@
   // ----------------------------
   // Raw deflate (browser-native)
   // ----------------------------
-function deflateRawStored(u8) {
-  // Raw DEFLATE "stored" blocks (BTYPE=00), byte-aligned.
-  // Each block: 1 byte header (0x00 or 0x01), then LEN(2), NLEN(2), then data.
-  // Split into <= 65535 chunks (DEFLATE stored block limit).
+  function deflateRawStored(u8) {
+    // Raw DEFLATE "stored" blocks (BTYPE=00), byte-aligned.
+    // Each block: 1 byte header (0x00 or 0x01), then LEN(2), NLEN(2), then data.
+    // Split into <= 65535 chunks (DEFLATE stored block limit).
 
-  const CHUNK = 65535;
-  const n = u8.byteLength;
+    const CHUNK = 65535;
+    const n = u8.byteLength;
 
-  // Special-case empty payload (valid DEFLATE stream)
-  if (n === 0) {
-    return new Uint8Array([0x01, 0x00, 0x00, 0xff, 0xff]);
+    // Special-case empty payload (valid DEFLATE stream)
+    if (n === 0) {
+      return new Uint8Array([0x01, 0x00, 0x00, 0xff, 0xff]);
+    }
+
+    const blockCount = Math.ceil(n / CHUNK);
+    const outLen = n + blockCount * 5;
+    const out = new Uint8Array(outLen);
+
+    let srcOff = 0;
+    let dstOff = 0;
+
+    for (let bi = 0; bi < blockCount; bi++) {
+      const remaining = n - srcOff;
+      const len = Math.min(CHUNK, remaining);
+      const finalBlock = bi === blockCount - 1;
+
+      // BFINAL + BTYPE=00 => 0x01 for final, 0x00 for non-final
+      out[dstOff++] = finalBlock ? 0x01 : 0x00;
+
+      // LEN (little-endian)
+      out[dstOff++] = len & 0xff;
+      out[dstOff++] = (len >>> 8) & 0xff;
+
+      // NLEN = one's complement of LEN (16-bit)
+      const nlen = (~len) & 0xffff;
+      out[dstOff++] = nlen & 0xff;
+      out[dstOff++] = (nlen >>> 8) & 0xff;
+
+      // Data
+      out.set(u8.subarray(srcOff, srcOff + len), dstOff);
+      srcOff += len;
+      dstOff += len;
+    }
+
+    return out;
   }
 
-  const blockCount = Math.ceil(n / CHUNK);
-  const outLen = n + blockCount * 5;
-  const out = new Uint8Array(outLen);
-
-  let srcOff = 0;
-  let dstOff = 0;
-
-  for (let bi = 0; bi < blockCount; bi++) {
-    const remaining = n - srcOff;
-    const len = Math.min(CHUNK, remaining);
-    const finalBlock = (bi === blockCount - 1);
-
-    // BFINAL + BTYPE=00 => 0x01 for final, 0x00 for non-final
-    out[dstOff++] = finalBlock ? 0x01 : 0x00;
-
-    // LEN (little-endian)
-    out[dstOff++] = (len & 0xff);
-    out[dstOff++] = ((len >>> 8) & 0xff);
-
-    // NLEN = one's complement of LEN (16-bit)
-    const nlen = (~len) & 0xffff;
-    out[dstOff++] = (nlen & 0xff);
-    out[dstOff++] = ((nlen >>> 8) & 0xff);
-
-    // Data
-    out.set(u8.subarray(srcOff, srcOff + len), dstOff);
-    srcOff += len;
-    dstOff += len;
+  // Use stored blocks for maximum compatibility (no CompressionStream needed)
+  async function deflateRaw(u8) {
+    return deflateRawStored(u8);
   }
 
-  return out;
-}
-
-// Use stored blocks for maximum compatibility (no CompressionStream needed)
-async function deflateRaw(u8) {
-  return deflateRawStored(u8);
-}
   // ----------------------------
   // Charset policies (contiguous intervals)
   // ----------------------------
   function getCoverageIntervals(mode) {
-    // Minimal: enough for basic English + Western punctuation.
+    // Minimal: still reasonably small, but now includes General Punctuation so EPUB quotes/dashes work.
     const minimal = [
       [0x0020, 0x007e], // Basic Latin printable
       [0x00a0, 0x00ff], // Latin-1 supplement (no controls)
+      [0x2000, 0x206f], // General punctuation (smart quotes, dashes, ellipsis, etc.)
       [0xfffd, 0xfffd], // replacement glyph
     ];
 
@@ -232,73 +234,73 @@ async function deflateRaw(u8) {
   }
 
   function renderGlyphToBitmap(ctx, fontCss, cp, baselineX, baselineY, canvasW, canvasH) {
-    const s = String.fromCodePoint(cp);
+  const s = String.fromCodePoint(cp);
 
-    ctx.clearRect(0, 0, canvasW, canvasH);
-    ctx.font = fontCss;
-    ctx.textBaseline = "alphabetic";
-    ctx.fillStyle = "black";
-    ctx.fillText(s, baselineX, baselineY);
+  ctx.clearRect(0, 0, canvasW, canvasH);
+  ctx.font = fontCss;
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "black";
+  ctx.fillText(s, baselineX, baselineY);
 
-    const img = ctx.getImageData(0, 0, canvasW, canvasH);
-    const data = img.data;
+  const img = ctx.getImageData(0, 0, canvasW, canvasH);
+  const data = img.data;
 
-    // Scan bounding box of alpha>0
-    let minX = canvasW,
-      minY = canvasH,
-      maxX = -1,
-      maxY = -1;
-    for (let y = 0; y < canvasH; y++) {
-      for (let x = 0; x < canvasW; x++) {
-        const a = data[(y * canvasW + x) * 4 + 3];
-        if (a !== 0) {
-          if (x < minX) minX = x;
-          if (y < minY) minY = y;
-          if (x > maxX) maxX = x;
-          if (y > maxY) maxY = y;
-        }
+  // Scan bounding box of alpha>0
+  let minX = canvasW, minY = canvasH, maxX = -1, maxY = -1;
+  for (let y = 0; y < canvasH; y++) {
+    for (let x = 0; x < canvasW; x++) {
+      const a = data[(y * canvasW + x) * 4 + 3];
+      if (a !== 0) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
       }
     }
-
-    const tm = ctx.measureText(s);
-    const advancePx = tm.width;
-
-    if (maxX < minX || maxY < minY) {
-      return {
-        width: 0,
-        height: 0,
-        left: 0,
-        top: 0,
-        advancePx,
-        aligned: new Uint8Array(0),
-        alignedHash: 0,
-      };
-    }
-
-    const width = maxX - minX + 1;
-    const height = maxY - minY + 1;
-
-    // metrics relative to baseline point
-    const left = minX - baselineX; // can be negative
-    const top = baselineY - minY; // positive up
-
-    // Extract bbox pixels -> 2-bit
-    const pixels2bit = new Uint8Array(width * height);
-    let p = 0;
-    for (let y = 0; y < height; y++) {
-      const yy = minY + y;
-      for (let x = 0; x < width; x++) {
-        const xx = minX + x;
-        const a = data[(yy * canvasW + xx) * 4 + 3];
-        pixels2bit[p++] = quantizeAlphaTo2Bit(a);
-      }
-    }
-
-    const aligned = packAligned2Bit(pixels2bit, width, height);
-    const alignedHash = (hashU8(aligned) ^ (width << 16) ^ height) >>> 0;
-
-    return { width, height, left, top, advancePx, aligned, alignedHash };
   }
+
+  const tm = ctx.measureText(s);
+  const advancePx = tm.width;
+
+  // Empty glyph (space, etc.)
+  if (maxX < minX || maxY < minY) {
+    return {
+      width: 0,
+      height: 0,
+      left: 0,
+      top: 0,
+      advancePx,
+      aligned: new Uint8Array(0),
+      alignedHash: 0,
+    };
+  }
+
+  const width = maxX - minX + 1;
+  const height = maxY - minY + 1;
+
+  // CRITICAL: Compute left and top relative to baseline point
+  // left = pixels from baseline horizontally (can be negative for italic)
+  // top = pixels ABOVE baseline (always positive)
+  const left = minX - baselineX;
+  const top = baselineY - minY;  // distance from baseline UP to top of glyph
+
+  // Extract bbox pixels -> 2-bit
+  const pixels2bit = new Uint8Array(width * height);
+  let p = 0;
+  for (let y = 0; y < height; y++) {
+    const yy = minY + y;
+    for (let x = 0; x < width; x++) {
+      const xx = minX + x;
+      const a = data[(yy * canvasW + xx) * 4 + 3];
+      pixels2bit[p++] = quantizeAlphaTo2Bit(a);
+    }
+  }
+
+  const aligned = packAligned2Bit(pixels2bit, width, height);
+  const alignedHash = (hashU8(aligned) ^ (width << 16) ^ height) >>> 0;
+
+  return { width, height, left, top, advancePx, aligned, alignedHash };
+}
 
   function styleToFontCssPrefix(style) {
     // Canvas font syntax: "[style] [weight] <size>px <family>"
@@ -314,6 +316,24 @@ async function deflateRaw(u8) {
         return "normal 400";
     }
   }
+
+function computeHeaderMetrics(ctx, sizePx) {
+  // Use a string that contains ascenders + descenders for robust metrics.
+  const sample = "Hg|Áyjpq";
+  const m = ctx.measureText(sample);
+
+  // actualBoundingBoxAscent: distance from baseline UP to tallest pixel
+  // actualBoundingBoxDescent: distance from baseline DOWN to lowest pixel
+  const asc = Math.ceil(m.actualBoundingBoxAscent || sizePx * 0.8);
+  const desc = Math.ceil(m.actualBoundingBoxDescent || sizePx * 0.25);
+
+  // advanceY = line height = space needed from one baseline to the next
+  // CRITICAL: Must be at least asc + desc + leading
+  const advanceY = Math.min(255, Math.max(1, asc + desc + 2));
+
+  console.log(`Metrics: size=${sizePx}px, asc=${asc}, desc=${desc}, advanceY=${advanceY}`);
+  return { asc, desc, advanceY };
+}
 
   // ----------------------------
   // Build CPFN v1 (.bin) for a font file and a single size+style
@@ -345,14 +365,11 @@ async function deflateRaw(u8) {
     const baselineX = 64;
     const baselineY = 128;
 
-    // Header metrics (rough but consistent)
+    // Header metrics
     ctx.font = fontCss;
     ctx.textBaseline = "alphabetic";
-    const m = ctx.measureText("Hg");
-    const asc = Math.ceil(m.actualBoundingBoxAscent || sizePx);
-    const desPos = Math.ceil(m.actualBoundingBoxDescent || Math.floor(sizePx * 0.25));
-    const desc = -desPos;
-    const advanceY = Math.min(255, Math.max(1, Math.ceil(asc + desPos + 1)));
+    const { asc, desc, advanceY } = computeHeaderMetrics(ctx, sizePx);
+    log(`Metrics: asc=${asc} desc=${desc} advanceY=${advanceY}`);
 
     // Coverage intervals -> codepoint list
     const intervals = getCoverageIntervals(charsetMode);
@@ -383,8 +400,10 @@ async function deflateRaw(u8) {
 
       if (g.alignedHash === missingProbe.alignedHash) g = repl;
 
-      // packed length (2-bit packed, 4 pixels per byte)
-      const packedLen = g.width === 0 || g.height === 0 ? 0 : Math.ceil((g.width * g.height) / 4);
+      // IMPORTANT:
+      // We store bitmaps as byte-aligned rows => data length must equal rowStride*height,
+      // which is exactly g.aligned.length (NOT ceil(w*h/4)).
+      const dataLen = g.aligned ? g.aligned.length : 0;
 
       glyphs[i] = {
         width: g.width,
@@ -392,8 +411,8 @@ async function deflateRaw(u8) {
         left: g.left,
         top: g.top,
         advanceX_fp4: Math.max(0, Math.min(0xffff, Math.round(g.advancePx * 16))), // 12.4 fixed
-        dataLength: packedLen,
-        dataOffset: 0, // unused for grouped fonts, but kept monotonic in table write
+        dataLength: dataLen,
+        dataOffset: 0, // filled during table write
       };
 
       alignedBitmaps[i] = g.aligned;
@@ -417,9 +436,7 @@ async function deflateRaw(u8) {
       let uncomp = 0;
 
       while (groupEnd < glyphs.length) {
-        const w = glyphs[groupEnd].width;
-        const h = glyphs[groupEnd].height;
-        const add = w > 0 && h > 0 ? Math.floor((w + 3) / 4) * h : 0;
+        const add = glyphs[groupEnd].dataLength;
         if (groupEnd > groupStart && uncomp + add > MAX_GROUP_UNCOMP) break;
         uncomp += add;
         groupEnd++;
@@ -527,7 +544,7 @@ async function deflateRaw(u8) {
     dv.setUint8(p++, advanceY);
     dv.setInt16(p, asc, true);
     p += 2;
-    dv.setInt16(p, desc, true);
+    dv.setInt16(p, desc, true);  // Store as positive magnitude (not negated)
     p += 2;
     dv.setUint8(p++, 0); // reserved0
 
@@ -589,7 +606,7 @@ async function deflateRaw(u8) {
 
     // Glyph table
     let go = glyphTableOffset;
-    let packedDataOffset = 0;
+    let dataOffset = 0;
     for (let i = 0; i < glyphCount; i++) {
       const g = glyphs[i];
       dv.setUint8(go + 0, g.width);
@@ -598,8 +615,8 @@ async function deflateRaw(u8) {
       dv.setInt16(go + 4, g.left, true);
       dv.setInt16(go + 6, g.top, true);
       dv.setUint16(go + 8, g.dataLength, true);
-      dv.setUint32(go + 10, packedDataOffset, true);
-      packedDataOffset += g.dataLength;
+      dv.setUint32(go + 10, dataOffset, true);
+      dataOffset += g.dataLength;
       go += GLYPH_REC_SIZE;
     }
 
