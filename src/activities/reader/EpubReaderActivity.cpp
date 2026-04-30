@@ -675,16 +675,28 @@ void EpubReaderActivity::render(RenderLock&& lock) {
   const uint16_t viewportWidth = renderer.getScreenWidth() - orientedMarginLeft - orientedMarginRight;
   const uint16_t viewportHeight = renderer.getScreenHeight() - orientedMarginTop - orientedMarginBottom;
 
+  // Resolve the font id once (custom ensureLoaded + fallback)
+  int fontId = SETTINGS.getReaderFontId();
+  if (fontId == CUSTOM_FONT_ID) {
+    FontCacheManager* fcm = renderer.getFontCacheManager();
+    if (!fcm) {
+      LOG_ERR("ERS", "render: FontCacheManager is null; falling back to built-in font");
+      fontId = SETTINGS.getBuiltInReaderFontId();
+    } else if (!CUSTOM_FONT_RUNTIME.ensureLoadedForCurrentSettings(renderer, *fcm)) {
+      fontId = SETTINGS.getBuiltInReaderFontId();
+    }
+  }
+  
   if (!section) {
     const auto filepath = epub->getSpineItem(currentSpineIndex).href;
     section = std::unique_ptr<Section>(new Section(epub, currentSpineIndex, renderer));
 
-    if (!section->loadSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
+    if (!section->loadSectionFile(fontId, SETTINGS.getReaderLineCompression(),
                                   SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment, viewportWidth,
                                   viewportHeight, SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle,
                                   SETTINGS.imageRendering)) {
       const auto popupFn = [this]() { GUI.drawPopup(renderer, tr(STR_INDEXING)); };
-      if (!section->createSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
+      if (!section->createSectionFile(fontId, SETTINGS.getReaderLineCompression(),
                                       SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment, viewportWidth,
                                       viewportHeight, SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle,
                                       SETTINGS.imageRendering, popupFn)) {
@@ -786,19 +798,29 @@ void EpubReaderActivity::silentIndexNextChapterIfNeeded(const uint16_t viewportW
     return;
   }
 
+  // Resolve the font id once (custom ensureLoaded + fallback)
+  int fontId = SETTINGS.getReaderFontId();
+  if (fontId == CUSTOM_FONT_ID) {
+    FontCacheManager* fcm = renderer.getFontCacheManager();
+    if (!fcm) {
+      LOG_ERR("CFR", "silentIndex: FontCacheManager is null; falling back to built-in font");
+      fontId = SETTINGS.getBuiltInReaderFontId();
+    } else if (!CUSTOM_FONT_RUNTIME.ensureLoadedForCurrentSettings(renderer, *fcm)) {
+      fontId = SETTINGS.getBuiltInReaderFontId();
+    }
+  }
+
   Section nextSection(epub, nextSpineIndex, renderer);
-  if (nextSection.loadSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
-                                  SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment, viewportWidth,
-                                  viewportHeight, SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle,
-                                  SETTINGS.imageRendering)) {
+  if (nextSection.loadSectionFile(fontId, SETTINGS.getReaderLineCompression(), SETTINGS.extraParagraphSpacing,
+                                  SETTINGS.paragraphAlignment, viewportWidth, viewportHeight,
+                                  SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle, SETTINGS.imageRendering)) {
     return;
   }
 
   LOG_DBG("ERS", "Silently indexing next chapter: %d", nextSpineIndex);
-  if (!nextSection.createSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
-                                     SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment, viewportWidth,
-                                     viewportHeight, SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle,
-                                     SETTINGS.imageRendering)) {
+  if (!nextSection.createSectionFile(fontId, SETTINGS.getReaderLineCompression(), SETTINGS.extraParagraphSpacing,
+                                     SETTINGS.paragraphAlignment, viewportWidth, viewportHeight,
+                                     SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle, SETTINGS.imageRendering)) {
     LOG_ERR("ERS", "Failed silent indexing for chapter: %d", nextSpineIndex);
   }
 }
@@ -825,24 +847,27 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
                                         const int orientedMarginRight, const int orientedMarginBottom,
                                         const int orientedMarginLeft) {
   const auto t0 = millis();
-  auto* fcm = renderer.getFontCacheManager();
+
+  FontCacheManager* fcm = renderer.getFontCacheManager();
+  if (!fcm) {
+    LOG_ERR("ERS", "renderContents: FontCacheManager is null; cannot render page safely");
+    return;  // or show an error page / fallback UI
+  }
+
   fcm->resetStats();
 
   // --- Custom font runtime hook ---
-  // Ensure CUSTOM_FONT_ID is actually mapped to a loaded custom font family
-  // BEFORE any scan/prewarm or real render passes.
-  int readerFontId = SETTINGS.getReaderFontId();
-  if (readerFontId == CUSTOM_FONT_ID) {
+  int fontId = SETTINGS.getReaderFontId();
+  if (fontId == CUSTOM_FONT_ID) {
     if (!CUSTOM_FONT_RUNTIME.ensureLoadedForCurrentSettings(renderer, *fcm)) {
-      // If custom font couldn't be activated (missing slot/files), render with built-in font instead.
-      readerFontId = SETTINGS.getBuiltInReaderFontId();
+      fontId = SETTINGS.getBuiltInReaderFontId();
     }
   }
 
   // Font prewarm: scan pass accumulates text, then prewarm, then real render
   const uint32_t heapBefore = esp_get_free_heap_size();
   auto scope = fcm->createPrewarmScope();
-  page->render(renderer, readerFontId, orientedMarginLeft, orientedMarginTop);  // scan pass
+  page->render(renderer, fontId, orientedMarginLeft, orientedMarginTop);  // scan pass
   scope.endScanAndPrewarm();
   const uint32_t heapAfter = esp_get_free_heap_size();
   fcm->logStats("prewarm");
@@ -859,7 +884,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   // Force special handling for pages with images when anti-aliasing is on
   bool imagePageWithAA = page->hasImages() && SETTINGS.textAntiAliasing;
 
-  page->render(renderer, readerFontId, orientedMarginLeft, orientedMarginTop);
+  page->render(renderer, fontId, orientedMarginLeft, orientedMarginTop);
   renderStatusBar();
   fcm->logStats("bw_render");
   const auto tBwRender = millis();
@@ -872,7 +897,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
       if (!isQsOpen) renderer.displayBuffer(HalDisplay::FAST_REFRESH);
 
       // Re-render page content to restore images into the blanked area
-      page->render(renderer, readerFontId, orientedMarginLeft, orientedMarginTop);
+      page->render(renderer, fontId, orientedMarginLeft, orientedMarginTop);
       if (!isQsOpen) renderer.displayBuffer(HalDisplay::FAST_REFRESH);
     } else {
       if (!isQsOpen) renderer.displayBuffer(HalDisplay::HALF_REFRESH);
@@ -891,14 +916,14 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   if (SETTINGS.textAntiAliasing && !isQsOpen) {
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
-    page->render(renderer, readerFontId, orientedMarginLeft, orientedMarginTop);
+    page->render(renderer, fontId, orientedMarginLeft, orientedMarginTop);
     renderer.copyGrayscaleLsbBuffers();
     const auto tGrayLsb = millis();
 
     // Render and copy to MSB buffer
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_MSB);
-    page->render(renderer, readerFontId, orientedMarginLeft, orientedMarginTop);
+    page->render(renderer, fontId, orientedMarginLeft, orientedMarginTop);
     renderer.copyGrayscaleMsbBuffers();
     const auto tGrayMsb = millis();
 
@@ -930,6 +955,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
             tEnd - t0);
   }
 }
+
 void EpubReaderActivity::renderStatusBar() const {
   // Calculate progress in book
   const int currentPage = section->currentPage + 1;

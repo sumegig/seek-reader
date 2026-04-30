@@ -21,4 +21,5 @@
 #define UI_10_FONT_ID (-1246724383)
 #define UI_12_FONT_ID (-359249323)
 #define SMALL_FONT_ID (1073217904)
-#define CUSTOM_FONT_ID (4000000000)
+// pick something < INT32_MAX
+static constexpr int CUSTOM_FONT_ID = 2000000000;
