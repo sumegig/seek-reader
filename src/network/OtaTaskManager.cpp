@@ -6,6 +6,16 @@
 #include "esp_https_ota.h"
 #include "esp_wifi.h"
 
+/*
+ * When esp_crt_bundle.h included, it is pointing wrong header file
+ * which is something under WifiClientSecure because of our framework based on arduno platform.
+ * To manage this obstacle, don't include anything, just extern and it will point correct one.
+ */
+extern "C" {
+extern esp_err_t esp_crt_bundle_attach(void* conf);
+}
+
+
 OtaTaskManager::OtaTaskManager() = default;
 
 OtaTaskManager::~OtaTaskManager() {
@@ -18,7 +28,7 @@ OtaTaskManager::~OtaTaskManager() {
 void OtaTaskManager::startDownload(const std::string& url, size_t size, ProgressCallback onProgress,
                                     CompletionCallback onComplete) {
   if (taskHandle != nullptr) {
-    LOG_WRN("OTA", "OTA task already running");
+    LOG_ERR("OTA", "OTA task already running");
     return;
   }
 
