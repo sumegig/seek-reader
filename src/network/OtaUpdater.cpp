@@ -3,11 +3,10 @@
 #include <ArduinoJson.h>
 #include <Logging.h>
 
+#include "OtaTaskManager.h"
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
 #include "esp_wifi.h"
-
-#include "OtaTaskManager.h"
 
 namespace {
 constexpr char latestReleaseUrl[] = "https://api.github.com/repos/sumegig/seek-reader/releases/latest";
@@ -236,8 +235,7 @@ OtaUpdater::OtaUpdaterError OtaUpdater::installUpdateAsync() {
 
   // Start download in background task
   taskManager->startDownload(
-      otaUrl, otaSize,
-      [this](size_t processed, size_t total) { this->onDownloadProgress(processed, total); },
+      otaUrl, otaSize, [this](size_t processed, size_t total) { this->onDownloadProgress(processed, total); },
       [this](bool success) { this->onDownloadComplete(success); });
 
   return OK;

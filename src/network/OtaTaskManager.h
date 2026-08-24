@@ -2,6 +2,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+
 #include <functional>
 #include <string>
 
@@ -33,8 +34,7 @@ class OtaTaskManager {
    * @param onProgress Called periodically with download progress
    * @param onComplete Called when download finishes (success or failure)
    */
-  void startDownload(const std::string& url, size_t size, ProgressCallback onProgress,
-                     CompletionCallback onComplete);
+  void startDownload(const std::string& url, size_t size, ProgressCallback onProgress, CompletionCallback onComplete);
 
   /**
    * Cancel ongoing download.

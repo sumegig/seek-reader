@@ -15,7 +15,6 @@ extern "C" {
 extern esp_err_t esp_crt_bundle_attach(void* conf);
 }
 
-
 OtaTaskManager::OtaTaskManager() = default;
 
 OtaTaskManager::~OtaTaskManager() {
@@ -26,7 +25,7 @@ OtaTaskManager::~OtaTaskManager() {
 }
 
 void OtaTaskManager::startDownload(const std::string& url, size_t size, ProgressCallback onProgress,
-                                    CompletionCallback onComplete) {
+                                   CompletionCallback onComplete) {
   if (taskHandle != nullptr) {
     LOG_ERR("OTA", "OTA task already running");
     return;
