@@ -152,10 +152,12 @@ void OtaUpdateActivity::loop() {
         state = UPDATE_IN_PROGRESS;
       }
       requestUpdateAndWait();
-      const auto res = updater.installUpdate();
+
+      // Start async download (doesn't block)
+      const auto res = updater.installUpdateAsync();
 
       if (res != OtaUpdater::OK) {
-        LOG_DBG("OTA", "Update failed: %d", res);
+        LOG_DBG("OTA", "Failed to start update: %d", res);
         {
           RenderLock lock(*this);
           state = FAILED;
@@ -164,6 +166,21 @@ void OtaUpdateActivity::loop() {
         return;
       }
 
+      // Now download runs in background - we can return to normal activity loop
+      return;
+    }
+
+    if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
+      finish();
+    }
+
+    return;
+  }
+
+  if (state == UPDATE_IN_PROGRESS) {
+    // Check if download finished
+    if (!updater.isDownloading()) {
+      LOG_DBG("OTA", "Download complete, waiting for restart");
       {
         RenderLock lock(*this);
         state = FINISHED;
@@ -172,9 +189,14 @@ void OtaUpdateActivity::loop() {
     }
 
     if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
-      finish();
+      // User can cancel during download
+      updater.cancelDownload();
+      {
+        RenderLock lock(*this);
+        state = FAILED;
+      }
+      requestUpdate();
     }
-
     return;
   }
 
