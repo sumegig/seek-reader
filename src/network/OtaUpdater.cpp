@@ -7,6 +7,8 @@
 #include "esp_https_ota.h"
 #include "esp_wifi.h"
 
+#include "OtaTaskManager.h"
+
 namespace {
 constexpr char latestReleaseUrl[] = "https://api.github.com/repos/sumegig/seek-reader/releases/latest";
 
@@ -59,6 +61,10 @@ esp_err_t event_handler(esp_http_client_event_t* event) {
   return ESP_OK;
 } /* event_handler */
 } /* namespace */
+
+OtaUpdater::OtaUpdater() : taskManager(std::make_unique<OtaTaskManager>()) {}
+
+OtaUpdater::~OtaUpdater() = default;
 
 OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
   JsonDocument filter;
@@ -199,6 +205,49 @@ bool OtaUpdater::isUpdateNewer() const {
 }
 
 const std::string& OtaUpdater::getLatestVersion() const { return latestVersion; }
+
+bool OtaUpdater::isDownloading() const {
+  if (!taskManager) return false;
+  return taskManager->getState() == OtaTaskManager::DOWNLOADING;
+}
+
+void OtaUpdater::onDownloadProgress(size_t processed, size_t total) {
+  processedSize = processed;
+  totalSize = total;
+  render = true;
+}
+
+void OtaUpdater::onDownloadComplete(bool success) {
+  if (success) {
+    LOG_INF("OTA", "Update download completed successfully");
+  } else {
+    LOG_ERR("OTA", "Update download failed");
+  }
+  render = true;
+}
+
+OtaUpdater::OtaUpdaterError OtaUpdater::installUpdateAsync() {
+  if (!isUpdateNewer()) {
+    return UPDATE_OLDER_ERROR;
+  }
+
+  /* For better timing and connectivity, we disable power saving for WiFi */
+  esp_wifi_set_ps(WIFI_PS_NONE);
+
+  // Start download in background task
+  taskManager->startDownload(
+      otaUrl, otaSize,
+      [this](size_t processed, size_t total) { this->onDownloadProgress(processed, total); },
+      [this](bool success) { this->onDownloadComplete(success); });
+
+  return OK;
+}
+
+void OtaUpdater::cancelDownload() {
+  if (taskManager) {
+    taskManager->cancel();
+  }
+}
 
 OtaUpdater::OtaUpdaterError OtaUpdater::installUpdate() {
   if (!isUpdateNewer()) {
